@@ -1,0 +1,35 @@
+@import "tailwindcss";
+
+@keyframes burn-flame {
+  0% {
+    text-shadow: 
+      0 0 4px #ef4444,
+      0 0 10px #dc2626,
+      0 -2px 14px #b91c1c,
+      0 -6px 20px rgba(220, 38, 38, 0.8);
+    filter: drop-shadow(0 0 8px rgba(239, 68, 68, 0.6));
+  }
+  50% {
+    text-shadow: 
+      0 0 6px #f87171,
+      0 0 14px #ef4444,
+      0 -4px 22px #dc2626,
+      0 -10px 30px rgba(185, 28, 28, 0.9);
+    filter: drop-shadow(0 0 16px rgba(239, 68, 68, 0.9));
+  }
+  100% {
+    text-shadow: 
+      0 0 3px #ef4444,
+      0 0 8px #dc2626,
+      0 -3px 16px #b91c1c,
+      0 -8px 24px rgba(220, 38, 38, 0.75);
+    filter: drop-shadow(0 0 10px rgba(239, 68, 68, 0.7));
+  }
+}
+
+.burning-fast {
+  color: #ffffff;
+  display: inline-block;
+  -webkit-text-stroke: 1.5px #ef4444;
+  animation: burn-flame 2s ease-in-out infinite alternate;
+}

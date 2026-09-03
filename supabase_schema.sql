@@ -1,0 +1,86 @@
+-- ==============================================================================
+-- UNIBOX LEAGUE 2026 - SUPABASE DATABASE SCHEMA
+-- Run this script in your Supabase Dashboard: SQL Editor -> New query -> Run
+-- ==============================================================================
+
+-- 1. Create Players Table
+create table if not exists public.players (
+    id uuid default gen_random_uuid() primary key,
+    created_at timestamp with time zone default timezone('utc'::text, now()) not null,
+    full_name text not null,
+    enrollment_no text not null unique,
+    department text not null,
+    email text not null unique,
+    gender text not null,
+    player_role text not null,
+    certificate_name text,
+    certificate_data text,
+    photo_data text,
+    password_hash text,
+    status text default 'Registered' not null
+);
+
+-- Migration for existing tables:
+alter table public.players add column if not exists password_hash text;
+alter table public.players add column if not exists certificate_data text;
+
+-- 2. Create Index for Fast Queries
+create index if not exists idx_players_email on public.players (email);
+create index if not exists idx_players_enrollment on public.players (enrollment_no);
+create index if not exists idx_players_dept on public.players (department);
+
+-- 3. Enable Row Level Security (RLS)
+alter table public.players enable row level security;
+
+-- 4. Create Public Access Policies (Allows public registration and read for tournament portal)
+-- Allow anyone to insert a registration record
+create policy "Allow public player registration" 
+    on public.players 
+    for insert 
+    with check (true);
+
+-- Allow public to view registered players
+create policy "Allow public read access to players" 
+    on public.players 
+    for select 
+    using (true);
+
+-- Allow public update (for photo/status updates)
+create policy "Allow public player updates" 
+    on public.players 
+    for update 
+    using (true);
+
+-- Allow public delete (for admin panel deletions)
+create policy "Allow public player delete" 
+    on public.players 
+    for delete 
+    using (true);
+
+-- ==============================================================================
+-- 5. ADMIN AUTHENTICATION TABLE
+-- ==============================================================================
+create table if not exists public.admins (
+    id uuid default gen_random_uuid() primary key,
+    created_at timestamp with time zone default timezone('utc'::text, now()) not null,
+    username text not null unique,
+    email text not null unique,
+    password_hash text not null,
+    role text default 'Lead Coordinator' not null
+);
+
+-- Enable RLS for admins
+alter table public.admins enable row level security;
+
+-- Allow read on admins for authentication
+create policy "Allow read on admins for authentication" 
+    on public.admins 
+    for select 
+    using (true);
+
+-- Seed Default Coordinator Account (Username: admin | Password: admin2026)
+insert into public.admins (username, email, password_hash, role)
+values ('admin', 'admin@unibox.com', '819ad992a50989f76e1e5fe6d2167e370dabae02fb8ac8b0add58c6a23134f23', 'Lead Coordinator')
+on conflict (username) do nothing;
+
+

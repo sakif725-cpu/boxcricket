@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth dark">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Command Center - UniBox League 2026</title>
+    <link href="../dist/output.css" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+        }
+        @media print {
+            .no-print {
+                display: none !important;
+            }
+            body {
+                background: white !important;
+                color: black !important;
+            }
+            .print-clean {
+                border: 1px solid #ddd !important;
+                box-shadow: none !important;
+            }
+        }
+    </style>
+    <!-- Instant Route Guard: Redirect to login if unauthenticated -->
+    <script>
+        if (!sessionStorage.getItem('unibox_admin_session')) {
+            window.location.replace('login.html');
+        }
+    </script>
+</head>
+
+<body class="bg-slate-950 text-slate-100 min-h-screen selection:bg-lime-400 selection:text-slate-950 relative antialiased">
+    <!-- Ambient Stadium Lighting Effect -->
+    <div class="fixed inset-0 pointer-events-none overflow-hidden z-0 no-print">
+        <div class="absolute -top-40 left-1/4 w-[600px] h-[600px] bg-lime-500/10 rounded-full blur-[140px]"></div>
+        <div class="absolute top-1/3 right-10 w-[500px] h-[500px] bg-emerald-500/10 rounded-full blur-[160px]"></div>
+        <div class="absolute bottom-10 left-10 w-[500px] h-[500px] bg-teal-500/5 rounded-full blur-[140px]"></div>
+    </div>
+
+    <!-- Top Admin Header -->
+    <header class="sticky top-0 z-40 bg-slate-950/80 backdrop-blur-md border-b border-slate-800/80 no-print">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
+            <!-- Brand & Badge -->
+            <div class="flex items-center gap-4">
+                <a href="../index.html" class="flex items-center gap-3 group">
+                    <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-lime-400 to-emerald-500 flex items-center justify-center text-slate-950 font-black shadow-lg shadow-lime-400/20 group-hover:scale-105 transition-transform">
+                        🏏
+                    </div>
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <span class="text-xs font-black tracking-widest text-lime-400 uppercase">UniBox League</span>
+                            <span class="text-[10px] uppercase font-bold px-2 py-0.5 rounded-full bg-rose-500/10 text-rose-400 border border-rose-500/20">Admin Area</span>
+                        </div>
+                        <h1 class="text-lg font-black tracking-tight text-white uppercase">Tournament HQ Control</h1>
+                    </div>
+                </a>
+            </div>
+
+            <!-- Header Actions -->
+            <div class="flex items-center gap-3">
+                <!-- Live DB Status -->
+                <div id="db-status-badge" class="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-900 border border-slate-800 text-xs font-semibold text-slate-300">
+                    <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                    <span id="db-status-text">Supabase Live</span>
+                </div>
+
+                <!-- Refresh Button -->
+                <button id="refresh-btn" type="button" class="p-2.5 rounded-xl border border-slate-800 bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white transition-all cursor-pointer" title="Refresh Live Data">
+                    <svg id="refresh-icon" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                </button>
+
+                <!-- Return to Public Portal -->
+                <a href="../index.html" class="text-xs font-bold text-slate-300 hover:text-white bg-slate-900 hover:bg-slate-800 border border-slate-800 px-4 py-2.5 rounded-xl transition-all flex items-center gap-2">
+                    <svg class="w-4 h-4 text-lime-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                    </svg>
+                    <span>Public Portal</span>
+                </a>
+
+                <!-- Coordinator Log Out -->
+                <button onclick="adminLogout()" type="button" class="text-xs font-bold text-rose-400 hover:text-white bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 px-3.5 py-2.5 rounded-xl transition-all cursor-pointer flex items-center gap-1.5" title="Exit Admin Session">
+                    <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
+                    <span>Log Out</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Admin Container -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 relative z-10 space-y-8">
+        <!-- KPI Metrics Strip -->
+        <section class="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+            <!-- Metric 1: Total Athletes -->
+            <div class="p-5 rounded-2xl bg-slate-900/50 border border-slate-800 backdrop-blur-sm relative overflow-hidden">
+                <div class="flex items-center justify-between mb-2">
+                    <span class="text-xs font-bold uppercase tracking-wider text-slate-400">Total Athletes</span>
+                    <span class="p-2 rounded-lg bg-slate-800/80 text-lime-400">👥</span>
+                </div>
+                <div class="flex items-baseline gap-2">
+                    <h3 id="stat-total" class="text-3xl sm:text-4xl font-black text-white">0</h3>
+                    <span class="text-xs text-slate-500 font-semibold">Registered</span>
+                </div>
+                <div class="w-full bg-slate-800/50 h-1.5 rounded-full mt-3 overflow-hidden">
+                    <div class="bg-lime-400 h-full w-full"></div>
+                </div>
+            </div>
+
+            <!-- Metric 2: Approved / Cleared -->
+            <div class="p-5 rounded-2xl bg-slate-900/50 border border-slate-800 backdrop-blur-sm relative overflow-hidden">
+                <div class="flex items-center justify-between mb-2">
+                    <span class="text-xs font-bold uppercase tracking-wider text-slate-400">Verified & Approved</span>
+                    <span class="p-2 rounded-lg bg-slate-800/80 text-emerald-400">✅</span>
+                </div>
+                <div class="flex items-baseline gap-2">
+                    <h3 id="stat-approved" class="text-3xl sm:text-4xl font-black text-emerald-400">0</h3>
+                    <span class="text-xs text-slate-500 font-semibold">Matchday Ready</span>
+                </div>
+                <div class="w-full bg-slate-800/50 h-1.5 rounded-full mt-3 overflow-hidden">
+                    <div id="stat-approved-bar" class="bg-emerald-400 h-full w-0 transition-all duration-500"></div>
+                </div>
+            </div>
+
+            <!-- Metric 3: Pending Review -->
+            <div class="p-5 rounded-2xl bg-slate-900/50 border border-slate-800 backdrop-blur-sm relative overflow-hidden">
+                <div class="flex items-center justify-between mb-2">
+                    <span class="text-xs font-bold uppercase tracking-wider text-slate-400">Pending Clearance</span>
+                    <span class="p-2 rounded-lg bg-slate-800/80 text-amber-400">⏳</span>
+                </div>
+                <div class="flex items-baseline gap-2">
+                    <h3 id="stat-pending" class="text-3xl sm:text-4xl font-black text-amber-400">0</h3>
+                    <span class="text-xs text-slate-500 font-semibold">Needs Review</span>
+                </div>
+                <div class="w-full bg-slate-800/50 h-1.5 rounded-full mt-3 overflow-hidden">
+                    <div id="stat-pending-bar" class="bg-amber-400 h-full w-0 transition-all duration-500"></div>
+                </div>
+            </div>
+
+            <!-- Metric 4: Departments Active -->
+            <div class="p-5 rounded-2xl bg-slate-900/50 border border-slate-800 backdrop-blur-sm relative overflow-hidden">
+                <div class="flex items-center justify-between mb-2">
+                    <span class="text-xs font-bold uppercase tracking-wider text-slate-400">Departments</span>
+                    <span class="p-2 rounded-lg bg-slate-800/80 text-teal-400">🏫</span>
+                </div>
+                <div class="flex items-baseline gap-2">
+                    <h3 id="stat-depts" class="text-3xl sm:text-4xl font-black text-teal-400">0</h3>
+                    <span class="text-xs text-slate-500 font-semibold">Branches Competing</span>
+                </div>
+                <div class="w-full bg-slate-800/50 h-1.5 rounded-full mt-3 overflow-hidden">
+                    <div class="bg-teal-400 h-full w-full"></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Master Roster Management Panel -->
+        <section class="bg-slate-900/50 border border-slate-800 rounded-3xl overflow-hidden backdrop-blur-sm shadow-2xl">
+            <!-- Header & Filter Bar -->
+            <div class="p-6 sm:p-8 border-b border-slate-800/80 space-y-6 no-print">
+                <div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                    <div>
+                        <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold bg-lime-400/10 text-lime-400 border border-lime-400/20 mb-2">
+                            <span>Official Clearance Ledger</span>
+                        </div>
+                        <h2 class="text-2xl sm:text-3xl font-black text-white uppercase tracking-tight">
+                            Registered Athlete <span class="bg-gradient-to-r from-lime-400 via-emerald-400 to-teal-400 bg-clip-text text-transparent">Roster</span>
+                        </h2>
+                        <p class="text-xs sm:text-sm text-slate-400 mt-1">Review athlete credentials, verify photos, and clear players for tournament matches.</p>
+                    </div>
+
+                    <!-- Action Buttons -->
+                    <div class="flex items-center gap-3 w-full md:w-auto justify-end flex-wrap">
+                        <button id="export-csv-btn" type="button" class="text-xs font-bold text-slate-300 hover:text-white bg-slate-800 hover:bg-slate-700 border border-slate-700 px-4 py-2.5 rounded-xl transition-all cursor-pointer flex items-center gap-2">
+                            <svg class="w-4 h-4 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                            </svg>
+                            <span>Export CSV</span>
+                        </button>
+                        <button onclick="window.print()" type="button" class="text-xs font-bold text-slate-300 hover:text-white bg-slate-800 hover:bg-slate-700 border border-slate-700 px-4 py-2.5 rounded-xl transition-all cursor-pointer flex items-center gap-2">
+                            <svg class="w-4 h-4 text-lime-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+                            </svg>
+                            <span>Print Sheet</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Multi-Criteria Filter Controls -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 pt-2">
+                    <!-- Search Input -->
+                    <div class="relative">
+                        <span class="absolute inset-y-0 left-0 flex items-center pl-3.5 pointer-events-none text-slate-500">
+                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                            </svg>
+                        </span>
+                        <input id="filter-search" type="text" placeholder="Search name, enrollment, email..."
+                            class="bg-slate-950 border border-slate-800 text-white text-xs rounded-xl focus:ring-2 focus:ring-lime-400/20 focus:border-lime-400 block w-full pl-9 pr-3 py-3 placeholder-slate-500 outline-none transition-all">
+                    </div>
+
+                    <!-- Department Filter -->
+                    <div>
+                        <select id="filter-dept" class="bg-slate-950 border border-slate-800 text-slate-300 text-xs rounded-xl focus:ring-2 focus:ring-lime-400/20 focus:border-lime-400 block w-full px-3 py-3 outline-none transition-all">
+                            <option value="ALL">All Departments</option>
+                            <option value="B.Tech">B.Tech</option>
+                            <option value="BCA">BCA</option>
+                            <option value="BBA">BBA</option>
+                            <option value="MCA">MCA</option>
+                            <option value="MBA">MBA</option>
+                        </select>
+                    </div>
+
+                    <!-- Role Filter -->
+                    <div>
+                        <select id="filter-role" class="bg-slate-950 border border-slate-800 text-slate-300 text-xs rounded-xl focus:ring-2 focus:ring-lime-400/20 focus:border-lime-400 block w-full px-3 py-3 outline-none transition-all">
+                            <option value="ALL">All Playing Roles</option>
+                            <option value="All-Rounder">All-Rounder</option>
+                            <option value="Batter">Batter</option>
+                            <option value="Bowler">Bowler</option>
+                            <option value="Wicketkeeper">Wicketkeeper</option>
+                            <option value="Fielder">Fielder</option>
+                        </select>
+                    </div>
+
+                    <!-- Status Filter -->
+                    <div>
+                        <select id="filter-status" class="bg-slate-950 border border-slate-800 text-slate-300 text-xs rounded-xl focus:ring-2 focus:ring-lime-400/20 focus:border-lime-400 block w-full px-3 py-3 outline-none transition-all">
+                            <option value="ALL">All Clearance Statuses</option>
+                            <option value="Registered">Registered (Pending)</option>
+                            <option value="Approved">Approved / Cleared</option>
+                            <option value="Rejected">Rejected</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Roster Table Container -->
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-sm border-collapse">
+                    <thead>
+                        <tr class="border-b border-slate-800 bg-slate-950/80 text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+                            <th scope="col" class="py-4 px-6">Athlete Profile</th>
+                            <th scope="col" class="py-4 px-4">Enrollment ID</th>
+                            <th scope="col" class="py-4 px-4">Department</th>
+                            <th scope="col" class="py-4 px-4">Playing Role</th>
+                            <th scope="col" class="py-4 px-4">Certificate</th>
+                            <th scope="col" class="py-4 px-4">Clearance Status</th>
+                            <th scope="col" class="py-4 px-6 text-right no-print">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="roster-table-body" class="divide-y divide-slate-800/60 font-medium text-slate-300">
+                        <!-- Dynamic Player Rows rendered via admin.js -->
+                        <tr>
+                            <td colspan="7" class="py-12 text-center text-slate-500">
+                                <div class="flex flex-col items-center justify-center gap-3">
+                                    <div class="w-8 h-8 border-2 border-lime-400 border-t-transparent rounded-full animate-spin"></div>
+                                    <p class="text-xs">Connecting to Supabase and retrieving athletes...</p>
+                                </div>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Table Footer Summary -->
+            <div class="p-4 sm:px-6 border-t border-slate-800/80 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-500 bg-slate-950/40">
+                <p id="table-summary-count">Showing 0 athletes</p>
+                <p class="text-[11px]">UniBox League 2026 • Official Admin Ledger</p>
+            </div>
+        </section>
+    </main>
+
+    <!-- Athlete Detail / Inspection Modal -->
+    <div id="athlete-modal" tabindex="-1" aria-hidden="true"
+        class="hidden overflow-y-auto overflow-x-hidden fixed inset-0 z-50 justify-center items-center w-full h-full bg-slate-950/80 backdrop-blur-sm p-4">
+        <div class="relative w-full max-w-lg max-h-full">
+            <div class="relative bg-slate-900 rounded-3xl shadow-2xl border border-slate-800 overflow-hidden">
+                <!-- Close Button -->
+                <button type="button" onclick="closeAthleteModal()"
+                    class="absolute top-4 right-4 text-slate-500 hover:text-white rounded-lg text-sm w-8 h-8 inline-flex justify-center items-center cursor-pointer hover:bg-slate-800">
+                    <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 14 14">
+                        <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="m1 1 6 6m0 0 6 6M7 7l6-6M7 7l-6 6" />
+                    </svg>
+                </button>
+
+                <!-- Modal Content -->
+                <div class="p-6 sm:p-8 space-y-6">
+                    <div class="flex items-center gap-5">
+                        <!-- Headshot Preview -->
+                        <div class="w-24 h-24 rounded-2xl bg-gradient-to-tr from-lime-400 to-emerald-500 p-0.5 shadow-lg overflow-hidden shrink-0">
+                            <div class="w-full h-full bg-slate-950 rounded-2xl overflow-hidden flex items-center justify-center">
+                                <img id="modal-photo" src="" alt="Athlete Photo" class="w-full h-full object-cover hidden">
+                                <span id="modal-photo-placeholder" class="text-3xl text-slate-600">🏏</span>
+                            </div>
+                        </div>
+
+                        <div>
+                            <span id="modal-status-badge" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-slate-800 text-slate-300 mb-1">
+                                Pending
+                            </span>
+                            <h3 id="modal-name" class="text-xl font-black text-white uppercase">Athlete Name</h3>
+                            <p id="modal-email" class="text-xs text-slate-400 font-mono">student@university.edu</p>
+                        </div>
+                    </div>
+
+                    <!-- Credential Grid -->
+                    <div class="grid grid-cols-2 gap-3 p-4 rounded-2xl bg-slate-950 border border-slate-800 text-xs">
+                        <div>
+                            <p class="text-slate-500 font-bold uppercase tracking-wider text-[10px]">Enrollment Number</p>
+                            <p id="modal-enrollment" class="text-slate-200 font-mono font-bold mt-0.5">---</p>
+                        </div>
+                        <div>
+                            <p class="text-slate-500 font-bold uppercase tracking-wider text-[10px]">Department</p>
+                            <p id="modal-dept" class="text-slate-200 font-bold mt-0.5">---</p>
+                        </div>
+                        <div>
+                            <p class="text-slate-500 font-bold uppercase tracking-wider text-[10px]">Gender</p>
+                            <p id="modal-gender" class="text-slate-200 mt-0.5">---</p>
+                        </div>
+                        <div>
+                            <p class="text-slate-500 font-bold uppercase tracking-wider text-[10px]">Playing Role</p>
+                            <p id="modal-role" class="text-lime-400 font-bold mt-0.5">---</p>
+                        </div>
+                        <div class="col-span-2 pt-2 border-t border-slate-900 flex items-center justify-between gap-3">
+                            <div class="overflow-hidden">
+                                <p class="text-slate-500 font-bold uppercase tracking-wider text-[10px]">Sports Certificate</p>
+                                <p id="modal-cert" class="text-slate-300 mt-0.5 font-medium truncate">None attached</p>
+                            </div>
+                            <button id="modal-view-cert-btn" type="button" class="hidden shrink-0 px-3 py-1.5 rounded-xl text-xs font-bold bg-lime-400/10 text-lime-400 hover:bg-lime-400 hover:text-slate-950 border border-lime-400/20 transition-all cursor-pointer flex items-center gap-1.5">
+                                👁️ <span>View Document</span>
+                            </button>
+                        </div>
+                        <div class="col-span-2 pt-2 border-t border-slate-900">
+                            <p class="text-slate-500 font-bold uppercase tracking-wider text-[10px]">Registration Timestamp</p>
+                            <p id="modal-created" class="text-slate-400 text-[11px] mt-0.5 font-mono">---</p>
+                        </div>
+                    </div>
+
+                    <!-- Modal Actions -->
+                    <div class="flex items-center justify-between gap-3 pt-2">
+                        <button id="modal-delete-btn" type="button" class="text-xs font-bold text-rose-400 hover:text-rose-300 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 px-4 py-3 rounded-xl transition-all cursor-pointer">
+                            Delete Entry
+                        </button>
+                        <div class="flex items-center gap-2">
+                            <button id="modal-reject-btn" type="button" class="text-xs font-bold text-amber-400 hover:text-amber-300 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/20 px-4 py-3 rounded-xl transition-all cursor-pointer">
+                                Reject
+                            </button>
+                            <button id="modal-approve-btn" type="button" class="text-xs font-bold text-slate-950 bg-lime-400 hover:bg-lime-500 px-5 py-3 rounded-xl transition-all cursor-pointer shadow-lg shadow-lime-400/20">
+                                Approve Player
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notification Banner -->
+    <div id="toast-banner" class="fixed bottom-6 right-6 z-50 transform translate-y-20 opacity-0 transition-all duration-300 flex items-center gap-3 px-5 py-3.5 rounded-2xl shadow-2xl border pointer-events-none">
+        <span id="toast-icon" class="text-base">✓</span>
+        <span id="toast-message" class="text-xs font-bold">Action completed successfully</span>
+    </div>
+
+    <!-- Sports Certificate Viewer Modal -->
+    <div id="cert-viewer-modal" tabindex="-1" aria-hidden="true" class="hidden fixed inset-0 z-50 justify-center items-center w-full h-full bg-slate-950/85 backdrop-blur-md p-4 overflow-y-auto">
+        <div class="relative p-4 w-full max-w-3xl max-h-[90vh] flex flex-col">
+            <div class="relative bg-slate-900 rounded-3xl shadow-2xl border border-slate-800 flex flex-col overflow-hidden max-h-[85vh]">
+                <!-- Modal Header -->
+                <div class="flex items-center justify-between p-5 border-b border-slate-800 bg-slate-950/50">
+                    <div class="flex items-center gap-3">
+                        <div class="p-2 rounded-xl bg-lime-400/10 text-lime-400 text-lg">📜</div>
+                        <div>
+                            <h3 id="cert-viewer-title" class="text-base font-bold text-white">Sports Certificate</h3>
+                            <p id="cert-viewer-sub" class="text-xs text-slate-400 truncate max-w-xs sm:max-w-md">Athlete Verification Document</p>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <a id="cert-download-link" href="#" target="_blank" download="sports_certificate" class="text-xs font-bold text-slate-300 hover:text-white bg-slate-800 hover:bg-slate-700 px-3 py-1.5 rounded-xl transition-all flex items-center gap-1.5 border border-slate-700">
+                            <span>⬇️ Open / Download</span>
+                        </a>
+                        <button type="button" onclick="closeCertViewerModal()" class="text-slate-400 hover:text-white rounded-xl text-sm w-8 h-8 inline-flex justify-center items-center hover:bg-slate-800 cursor-pointer">
+                            ✕
+                        </button>
+                    </div>
+                </div>
+                <!-- Modal Body -->
+                <div class="p-4 overflow-y-auto flex-1 flex items-center justify-center bg-slate-950/40 min-h-[320px]">
+                    <img id="cert-viewer-img" src="" alt="Sports Certificate" class="hidden max-h-[65vh] w-auto object-contain rounded-xl border border-slate-800 shadow-lg">
+                    <iframe id="cert-viewer-pdf" src="" class="hidden w-full h-[65vh] rounded-xl border border-slate-800"></iframe>
+                    <div id="cert-viewer-empty" class="hidden text-center p-8 text-slate-500">
+                        <p class="text-3xl mb-2">📄</p>
+                        <p class="text-sm font-semibold">No certificate document preview available.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="../supabaseClient.js"></script>
+    <script src="admin.js"></script>
+</body>
+
+</html>
+

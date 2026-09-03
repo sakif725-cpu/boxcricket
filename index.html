@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Box Cricket League | University Tournament</title>
+    <!-- Optimized compiled static styles -->
+    <link href="./dist/output.css" rel="stylesheet">
+</head>
+
+<body class="bg-slate-950 text-white font-sans antialiased selection:bg-lime-400 selection:text-slate-900">
+
+    <!-- Ambient Stadium Light Gradients -->
+    <div class="absolute inset-0 -z-10 overflow-hidden">
+        <div class="absolute -top-40 left-1/3 h-[500px] w-[500px] rounded-full bg-lime-500/10 blur-[120px]"></div>
+        <div class="absolute top-1/4 right-1/4 h-[400px] w-[400px] rounded-full bg-emerald-500/10 blur-[100px]"></div>
+    </div>
+
+    <!-- Navigation Header -->
+    <header class="border-b border-slate-900 bg-slate-950/80 backdrop-blur-md sticky top-0 z-40">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+                <div class="bg-gradient-to-br from-lime-400 to-emerald-600 p-2 rounded-xl shadow-lg shadow-lime-500/20">
+                    <svg class="w-6 h-6 text-slate-950" xmlns="http://w3.org" fill="none" viewBox="0 0 24 24"
+                        stroke-width="2.5" stroke="currentColor">
+                        <circle cx="12" cy="12" r="10" />
+                        <path stroke-linecap="round" d="M6 12h12M12 6v12" />
+                    </svg>
+                </div>
+                <span
+                    class="text-xl font-black tracking-wider uppercase bg-gradient-to-r from-lime-400 to-emerald-400 bg-clip-text text-transparent">UniBox
+                    League</span>
+            </div>
+
+            <div class="flex items-center space-x-3">
+                <button id="nav-login-btn" data-modal-target="auth-modal" data-modal-toggle="auth-modal" data-tab-target="login"
+                    class="text-sm font-bold bg-lime-400 hover:bg-lime-500 text-slate-950 px-5 py-2.5 rounded-xl transition-all shadow-lg shadow-lime-400/20 cursor-pointer">Log
+                    In</button>
+                <button id="nav-logout-btn" class="hidden text-xs font-bold uppercase tracking-wider text-rose-400 hover:text-white bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 hover:border-rose-500/40 px-4 py-2.5 rounded-xl transition-all cursor-pointer">
+                    Log Out
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Hero Arena Section -->
+    <main class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-20 pb-16 text-center relative">
+        <span
+            class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-widest bg-lime-400/10 text-lime-400 ring-1 ring-inset ring-lime-400/20 mb-8">
+            Inter-Department Tournament 2026
+        </span>
+
+        <h1 class="text-5xl sm:text-7xl font-black tracking-tight text-white mb-6 leading-[1.1] uppercase">
+            <span class="burning-fast text-white">Fast</span> <br> Intense <br>
+            <span class="bg-gradient-to-r from-lime-400 via-emerald-400 to-teal-400 bg-clip-text text-transparent">Box
+                Cricket Arena.</span>
+        </h1>
+
+        <p class="text-lg sm:text-xl text-slate-400 max-w-3xl mx-auto mb-12 leading-relaxed">
+            
+        </p>
+
+        <div class="flex flex-col sm:flex-row items-center justify-center gap-5">
+            <button data-modal-target="auth-modal" data-modal-toggle="auth-modal" data-tab-target="signup"
+                class="w-full sm:w-auto font-extrabold bg-gradient-to-r from-lime-400 to-emerald-500 hover:from-lime-500 hover:to-emerald-600 text-slate-950 px-8 py-4 rounded-xl transition-all shadow-xl shadow-lime-400/10 flex items-center justify-center gap-3 cursor-pointer group">
+                Register
+                <svg class="w-5 h-5 transform group-hover:translate-x-1 transition-transform" fill="none"
+                    viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                </svg>
+            </button>
+            <button data-modal-target="rules-modal" data-modal-toggle="rules-modal"
+                class="w-full sm:w-auto font-semibold text-slate-300 hover:text-white border border-slate-800 hover:border-slate-700 bg-slate-900/50 px-8 py-4 rounded-xl transition-all block cursor-pointer">
+                Read Tournament Rules
+            </button>
+        </div>
+    </main>
+
+    <!-- PLAYER DASHBOARD PANEL (Hidden by Default) -->
+    <section id="player-dashboard" class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-12 hidden">
+        <!-- Dashboard Top Header Bar -->
+        <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between border-b border-slate-800/80 pb-6 mb-8 gap-4">
+            <div class="space-y-1">
+                <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold bg-lime-400/10 text-lime-400 border border-lime-400/20 mb-1">
+                    <span class="w-2 h-2 rounded-full bg-lime-400 animate-ping"></span>
+                    <span>Registration Confirmed</span>
+                </div>
+                <h2 class="text-3xl sm:text-4xl font-black tracking-tight text-white uppercase flex items-center gap-3">
+                    Player Arena <span class="bg-gradient-to-r from-lime-400 via-emerald-400 to-teal-400 bg-clip-text text-transparent">HQ</span>
+                </h2>
+                <p class="text-sm text-slate-400">Tournament registration credentials record and official clearance ledger.</p>
+            </div>
+            
+            <div class="flex items-center gap-3 w-full sm:w-auto justify-end">
+                <button onclick="window.print()" class="text-xs font-bold text-slate-300 hover:text-white bg-slate-900 hover:bg-slate-800 border border-slate-800 px-4 py-2.5 rounded-xl transition-all cursor-pointer flex items-center gap-2 shadow-sm">
+                    <svg class="w-4 h-4 text-lime-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
+                    Print Record
+                </button>
+            </div>
+        </div>
+
+        <!-- Athlete Profile Photo Upload Card -->
+        <div class="mb-8 p-6 bg-slate-900/50 border border-slate-800 rounded-3xl backdrop-blur-sm flex flex-col sm:flex-row items-center justify-center gap-6">
+            <!-- Avatar Preview Frame (Enlarged) -->
+            <div class="relative group">
+                <div class="w-32 h-32 rounded-3xl bg-gradient-to-tr from-lime-400 via-emerald-500 to-teal-400 p-0.5 shadow-xl shadow-lime-400/10 overflow-hidden">
+                    <div class="w-full h-full bg-slate-950 rounded-3xl overflow-hidden flex items-center justify-center relative">
+                        <!-- Image Element (Hidden until uploaded) -->
+                        <img id="dash-player-photo" src="" alt="Athlete Photo" class="w-full h-full object-cover hidden">
+                        <!-- Default Placeholder Icon -->
+                        <div id="dash-photo-placeholder" class="flex flex-col items-center justify-center text-slate-500">
+                            <svg class="w-14 h-14 text-slate-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                            </svg>
+                        </div>
+                    </div>
+                </div>
+                <span id="photo-status-badge" class="hidden absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-emerald-500 border-2 border-slate-900 items-center justify-center text-[10px] font-black text-slate-950 shadow-md">✓</span>
+            </div>
+
+            <!-- Upload Action Button & Hidden Input -->
+            <div>
+                <input id="dash-photo-input" type="file" accept="image/*" class="hidden">
+                <button type="button" onclick="document.getElementById('dash-photo-input').click()"
+                    class="text-xs font-bold bg-lime-400 hover:bg-lime-500 text-slate-950 px-6 py-3.5 rounded-xl transition-all cursor-pointer shadow-lg shadow-lime-400/20 flex items-center gap-2">
+                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                    <span id="photo-btn-text">Upload Photo</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Registration Credentials Tabular Card -->
+        <div class="bg-slate-900/40 border border-slate-800/90 rounded-3xl overflow-hidden shadow-2xl backdrop-blur-sm">
+            <!-- Table Header Strip -->
+            <div class="p-6 sm:px-8 border-b border-slate-800/80 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-slate-950/40">
+                <div>
+                    <h3 class="text-lg font-black text-white uppercase tracking-tight flex items-center gap-2">
+                        <span></span> Registration Credentials
+                    </h3>
+                    <p class="text-xs text-slate-400 mt-0.5">Verified submission entry for Inter-Department Box Cricket League 2026</p>
+                </div>
+                <div class="flex items-center gap-2">
+                    <span id="dash-clearance-status" class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-amber-400/10 text-amber-400 border border-amber-400/20">
+                        <span class="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse"></span>
+                        Pending Approval
+                    </span>
+                </div>
+            </div>
+
+            <!-- Responsive Table Layout -->
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-sm border-collapse">
+                    <thead>
+                        <tr class="border-b border-slate-800 bg-slate-950/80 text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+                            <th scope="col" class="py-3.5 px-6 sm:px-8 w-1/3">Credential Field</th>
+                            <th scope="col" class="py-3.5 px-6 sm:px-8">Registered Value</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-800/60 font-medium text-slate-300">
+                        <!-- Row 1: Full Name -->
+                        <tr class="hover:bg-slate-950/40 transition-colors">
+                            <td class="py-4 px-6 sm:px-8 font-semibold text-slate-400">
+                                Full Name
+                            </td>
+                            <td class="py-4 px-6 sm:px-8 font-bold text-white text-base">
+                                <span id="dash-player-name">---</span>
+                            </td>
+                        </tr>
+
+                        <!-- Row 2: Campus Email -->
+                        <tr class="hover:bg-slate-950/40 transition-colors">
+                            <td class="py-4 px-6 sm:px-8 font-semibold text-slate-400">
+                                    Email ID
+                            </td>
+                            <td class="py-4 px-6 sm:px-8 font-mono text-slate-200">
+                                <span id="dash-player-email">---</span>
+                            </td>
+                        </tr>
+
+                        <!-- Row 3: Enrollment Number -->
+                        <tr class="hover:bg-slate-950/40 transition-colors">
+                            <td class="py-4 px-6 sm:px-8 font-semibold text-slate-400">
+                                Enrollment Number
+                            </td>
+                            <td class="py-4 px-6 sm:px-8 font-mono font-bold text-slate-200">
+                                <span id="dash-player-roll">---</span>
+                            </td>
+                        </tr>
+
+                        <!-- Row 4: Department -->
+                        <tr class="hover:bg-slate-950/40 transition-colors">
+                            <td class="py-4 px-6 sm:px-8 font-semibold text-slate-400">
+                                    Department
+                            </td>
+                            <td class="py-4 px-6 sm:px-8 font-bold text-slate-200">
+                                <span id="dash-player-dept">---</span>
+                            </td>
+                        </tr>
+
+                        <!-- Row 5: Gender -->
+                        <tr class="hover:bg-slate-950/40 transition-colors">
+                            <td class="py-4 px-6 sm:px-8 font-semibold text-slate-400">
+                                Gender
+                            </td>
+                            <td class="py-4 px-6 sm:px-8 text-slate-200">
+                                <span id="dash-player-gender">---</span>
+                            </td>
+                        </tr>
+
+                        <!-- Row 6: Player Role -->
+                        <tr class="hover:bg-slate-950/40 transition-colors">
+                            <td class="py-4 px-6 sm:px-8 font-semibold text-slate-400">
+                                Playing Role
+                            </td>
+                            <td class="py-4 px-6 sm:px-8">
+                                <span id="dash-player-role" class="inline-block font-black text-lime-400 bg-lime-400/10 px-3 py-1 rounded-lg border border-lime-400/20 text-xs uppercase tracking-wider">---</span>
+                            </td>
+                        </tr>
+
+                        <!-- Row 7: Certificate -->
+                        <tr class="hover:bg-slate-950/40 transition-colors">
+                            <td class="py-4 px-6 sm:px-8 font-semibold text-slate-400">
+                                Sports Certificate
+                            </td>
+                            <td class="py-4 px-6 sm:px-8 text-slate-300">
+                                <div class="flex items-center justify-between gap-3">
+                                    <span id="dash-player-cert" class="font-medium text-xs">None attached</span>
+                                    <button id="dash-view-cert-btn" onclick="openCertViewerModal()" type="button" class="hidden px-3 py-1.5 rounded-xl text-xs font-bold bg-lime-400/10 text-lime-400 hover:bg-lime-400 hover:text-slate-950 border border-lime-400/20 transition-all cursor-pointer flex items-center gap-1.5">
+                                        👁️ <span>View Document</span>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Table Card Bottom Alert Strip -->
+            <div class="p-5 sm:px-8 border-t border-slate-800/80 bg-slate-950/60 flex items-center justify-between gap-4 text-xs text-slate-400">
+                <div class="flex items-center gap-2">
+                    <span class="text-lime-400"></span>
+                    <span><strong>Match Day Note:</strong> Bring physical University ID to Turf Alpha for verification.</span>
+                </div>
+                <span class="font-mono text-[11px] text-slate-500">REF: UBX-2026-REG</span>
+            </div>
+        </div>
+    </section>
+
+    <!-- Flowbite Interactive Auth Modal (Houses both Login & Signup) -->
+    <div id="auth-modal" tabindex="-1" aria-hidden="true"
+        class="hidden overflow-y-auto overflow-x-hidden fixed inset-0 z-50 justify-center items-center w-full h-full bg-slate-950/80 backdrop-blur-sm p-4">
+        <div class="relative p-4 w-full max-w-md max-h-full">
+            <div class="relative bg-slate-900 rounded-2xl shadow-2xl border border-slate-800 overflow-hidden">
+                <!-- Close cross -->
+                <button type="button"
+                    class="absolute top-4 right-4 text-slate-500 hover:text-white rounded-lg text-sm w-8 h-8 inline-flex justify-center items-center cursor-pointer hover:bg-slate-800"
+                    data-modal-hide="auth-modal">
+                    <svg class="w-3 h-3" fill="none" viewBox="0 0 14 14">
+                        <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"
+                            d="m1 1 6 6m0 0 6 6M7 7l6-6M7 7l-6 6" />
+                    </svg>
+                </button>
+
+                <!-- Modern Segmented Tabs -->
+                <div class="flex border-b border-slate-800 bg-slate-950/50 p-1">
+                    <button id="login-tab-btn"
+                        class="w-1/2 py-3.5 text-center text-sm font-bold rounded-xl transition-all cursor-pointer text-lime-400 bg-slate-900 shadow-sm"
+                        onclick="switchAuthTab('login')">Log In</button>
+                    <button id="signup-tab-btn"
+                        class="w-1/2 py-3.5 text-center text-sm font-bold rounded-xl transition-all cursor-pointer text-slate-400 hover:text-slate-200"
+                        onclick="switchAuthTab('signup')">Sign Up</button>
+                </div>
+
+                <div class="p-6 sm:p-8">
+                    <!-- Login Segment Interface -->
+                    <form id="login-form" action="#" method="POST" class="space-y-5">
+                        <div id="login-error-box" class="hidden p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs font-semibold flex items-center gap-2">
+                            <span>⚠️</span>
+                            <span id="login-error-text">Incorrect email or password.</span>
+                        </div>
+                        <div>
+                            <label for="login-email"
+                                class="block mb-2 text-xs font-bold uppercase tracking-wider text-slate-400">
+                                Email ID</label>
+                            <input type="email" id="login-email" name="email" placeholder="student@university.edu"
+                                class="bg-slate-950 border border-slate-800 text-white text-sm rounded-xl focus:ring-2 focus:ring-lime-400/20 focus:border-lime-400 block w-full p-3.5 placeholder-slate-600 outline-none transition-all"
+                                required>
+                        </div>
+                        <div>
+                            <label for="login-password"
+                                class="block mb-2 text-xs font-bold uppercase tracking-wider text-slate-400">Password</label>
+                            <input type="password" id="login-password" name="password" placeholder="••••••••"
+                                class="bg-slate-950 border border-slate-800 text-white text-sm rounded-xl focus:ring-2 focus:ring-lime-400/20 focus:border-lime-400 block w-full p-3.5 placeholder-slate-600 outline-none transition-all"
+                                required>
+                        </div>
+                        <div class="flex items-center justify-between text-sm pt-1">
+                            <label class="flex items-center text-slate-400 cursor-pointer select-none">
+                                <input type="checkbox"
+                                    class="w-4 h-4 rounded bg-slate-950 border-slate-800 text-lime-400 focus:ring-lime-400 focus:ring-offset-slate-900">
+                                <span class="ms-2.5 text-xs text-slate-400">Stay signed in</span>
+                            </label>
+                            <a href="#" class="text-xs text-lime-400 font-semibold hover:underline">Reset Password?</a>
+                        </div>
+                        <button type="submit"
+                            class="w-full text-slate-950 bg-lime-400 hover:bg-lime-500 font-bold rounded-xl text-sm px-5 py-3.5 text-center transition-all cursor-pointer shadow-lg shadow-lime-400/10 mt-2">Enter
+                            Dashboard</button>
+                    </form>
+
+                    <!-- Signup Segment Interface: Individual Player Registration -->
+                    <form id="signup-form" action="#" method="POST" class="space-y-4 hidden">
+                        <div id="signup-error-box" class="hidden p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs font-semibold flex items-center gap-2">
+                            <span>⚠️</span>
+                            <span id="signup-error-text">Registration failed.</span>
+                        </div>
+                        <!-- 1. Full Name -->
+                        <div>
+                            <label for="signup-name"
+                                class="block mb-1.5 text-xs font-bold uppercase tracking-wider text-slate-400">Full
+                                Name</label>
+                            <input type="text" id="signup-name" name="name" placeholder="Alex Mercer"
+                                class="bg-slate-950 border border-slate-800 text-white text-sm rounded-xl focus:ring-2 focus:ring-lime-400/20 focus:border-lime-400 block w-full p-3 placeholder-slate-600 outline-none transition-all"
+                                required>
+                        </div>
+
+                        <!-- 2. Enrollment Number -->
+                        <div>
+                            <label for="signup-enrollment"
+                                class="block mb-1.5 text-xs font-bold uppercase tracking-wider text-slate-400">Enrollment
+                                Number</label>
+                            <input type="text" id="signup-enrollment" name="enrollment_no"
+                                placeholder="E.g., 2026BTECH089"
+                                class="bg-slate-950 border border-slate-800 text-white text-sm rounded-xl focus:ring-2 focus:ring-lime-400/20 focus:border-lime-400 block w-full p-3 placeholder-slate-600 outline-none transition-all"
+                                required>
+                        </div>
+
+                        <!-- 3. Department -->
+                        <div>
+                            <label for="signup-department"
+                                class="block mb-1.5 text-xs font-bold uppercase tracking-wider text-slate-400">BRANCH</label>
+                            <select id="signup-department" name="department"
+                                class="bg-slate-950 border border-slate-800 text-slate-300 text-sm rounded-xl focus:ring-2 focus:ring-lime-400/20 focus:border-lime-400 block w-full p-3 outline-none transition-all"
+                                required>
+                                <option value="" disabled selected>Select Branch</option>
+                                <option value="BCA">BCA</option>
+                                <option value="B.Tech">B.Tech</option>
+                                <option value="BBA">BBA</option>
+                            </select>
+                        </div>
+                        <!-- 4. Email -->
+                        <div>
+                            <label for="signup-email"
+                                class="block mb-1.5 text-xs font-bold uppercase tracking-wider text-slate-400">Email ID</label>
+                            <input type="email" id="signup-email" name="email" placeholder="student@university.edu" autocomplete="email"
+                                class="bg-slate-950 border border-slate-800 text-white text-sm rounded-xl focus:ring-2 focus:ring-lime-400/20 focus:border-lime-400 block w-full p-3 placeholder-slate-600 outline-none transition-all"
+                                required>
+                        </div>
+
+                        <!-- 5. Password -->
+                        <div>
+                            <label for="signup-password"
+                                class="block mb-1.5 text-xs font-bold uppercase tracking-wider text-slate-400">Password</label>
+                            <input type="password" id="signup-password" name="password" placeholder="••••••••" minlength="6" autocomplete="new-password"
+                                class="bg-slate-950 border border-slate-800 text-white text-sm rounded-xl focus:ring-2 focus:ring-lime-400/20 focus:border-lime-400 block w-full p-3 placeholder-slate-600 outline-none transition-all"
+                                required>
+                        </div>
+
+                        <!-- 6. Gender Selection (Radio Buttons) -->
+                        <div>
+                            <label class="block mb-2 text-xs font-bold uppercase tracking-wider text-slate-400">Gender</label>
+                            <div class="grid grid-cols-3 gap-2">
+                                <label class="flex items-center justify-center gap-2 p-2.5 rounded-xl border border-slate-800 bg-slate-950/60 hover:border-slate-700 cursor-pointer text-xs font-medium text-slate-300 transition-all has-[:checked]:border-lime-400 has-[:checked]:text-lime-400 has-[:checked]:bg-lime-400/5">
+                                    <input type="radio" name="gender" value="Male" class="w-3.5 h-3.5 text-lime-400 bg-slate-900 border-slate-700 focus:ring-lime-400 focus:ring-offset-slate-900" required>
+                                    <span>Male</span>
+                                </label>
+                                <label class="flex items-center justify-center gap-2 p-2.5 rounded-xl border border-slate-800 bg-slate-950/60 hover:border-slate-700 cursor-pointer text-xs font-medium text-slate-300 transition-all has-[:checked]:border-lime-400 has-[:checked]:text-lime-400 has-[:checked]:bg-lime-400/5">
+                                    <input type="radio" name="gender" value="Female" class="w-3.5 h-3.5 text-lime-400 bg-slate-900 border-slate-700 focus:ring-lime-400 focus:ring-offset-slate-900">
+                                    <span>Female</span>
+                                </label>
+                                <label class="flex items-center justify-center gap-2 p-2.5 rounded-xl border border-slate-800 bg-slate-950/60 hover:border-slate-700 cursor-pointer text-xs font-medium text-slate-300 transition-all has-[:checked]:border-lime-400 has-[:checked]:text-lime-400 has-[:checked]:bg-lime-400/5">
+                                    <input type="radio" name="gender" value="Other" class="w-3.5 h-3.5 text-lime-400 bg-slate-900 border-slate-700 focus:ring-lime-400 focus:ring-offset-slate-900">
+                                    <span>Other</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- 7. Player Role Selection (Radio Buttons) -->
+                        <div>
+                            <label class="block mb-2 text-xs font-bold uppercase tracking-wider text-slate-400">Player Role</label>
+                            <div class="grid grid-cols-2 gap-2">
+                                <label class="flex items-center gap-2 p-2.5 rounded-xl border border-slate-800 bg-slate-950/60 hover:border-slate-700 cursor-pointer text-xs font-medium text-slate-300 transition-all has-[:checked]:border-lime-400 has-[:checked]:text-lime-400 has-[:checked]:bg-lime-400/5">
+                                    <input type="radio" name="player_role" value="All-Rounder" class="w-3.5 h-3.5 text-lime-400 bg-slate-900 border-slate-700 focus:ring-lime-400 focus:ring-offset-slate-900" required>
+                                    <span>All-Rounder</span>
+                                </label>
+                                <label class="flex items-center gap-2 p-2.5 rounded-xl border border-slate-800 bg-slate-950/60 hover:border-slate-700 cursor-pointer text-xs font-medium text-slate-300 transition-all has-[:checked]:border-lime-400 has-[:checked]:text-lime-400 has-[:checked]:bg-lime-400/5">
+                                    <input type="radio" name="player_role" value="Batter" class="w-3.5 h-3.5 text-lime-400 bg-slate-900 border-slate-700 focus:ring-lime-400 focus:ring-offset-slate-900">
+                                    <span>Batter</span>
+                                </label>
+                                <label class="flex items-center gap-2 p-2.5 rounded-xl border border-slate-800 bg-slate-950/60 hover:border-slate-700 cursor-pointer text-xs font-medium text-slate-300 transition-all has-[:checked]:border-lime-400 has-[:checked]:text-lime-400 has-[:checked]:bg-lime-400/5">
+                                    <input type="radio" name="player_role" value="Bowler" class="w-3.5 h-3.5 text-lime-400 bg-slate-900 border-slate-700 focus:ring-lime-400 focus:ring-offset-slate-900">
+                                    <span>Bowler</span>
+                                </label>
+                                <label class="flex items-center gap-2 p-2.5 rounded-xl border border-slate-800 bg-slate-950/60 hover:border-slate-700 cursor-pointer text-xs font-medium text-slate-300 transition-all has-[:checked]:border-lime-400 has-[:checked]:text-lime-400 has-[:checked]:bg-lime-400/5">
+                                    <input type="radio" name="player_role" value="Wicketkeeper" class="w-3.5 h-3.5 text-lime-400 bg-slate-900 border-slate-700 focus:ring-lime-400 focus:ring-offset-slate-900">
+                                    <span>Wicketkeeper</span>
+                                </label>
+                                <label class="flex items-center gap-2 p-2.5 rounded-xl border border-slate-800 bg-slate-950/60 hover:border-slate-700 cursor-pointer text-xs font-medium text-slate-300 transition-all has-[:checked]:border-lime-400 has-[:checked]:text-lime-400 has-[:checked]:bg-lime-400/5">
+                                    <input type="radio" name="player_role" value="Fielder" class="w-3.5 h-3.5 text-lime-400 bg-slate-900 border-slate-700 focus:ring-lime-400 focus:ring-offset-slate-900">
+                                    <span>Fielder</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- 8. Sports Certificate (Optional) -->
+                        <div>
+                            <div class="flex items-center justify-between mb-1.5">
+                                <label for="signup-certificate" class="text-xs font-bold uppercase tracking-wider text-slate-400">
+                                    Sports Certificate <span class="text-slate-500 font-normal lowercase">(optional)</span>
+                                </label>
+                                <span class="text-[10px] text-slate-500">PDF, JPG, PNG</span>
+                            </div>
+                            <label for="signup-certificate"
+                                class="flex items-center gap-3 p-3 border-2 border-dashed border-slate-800 hover:border-lime-400/50 bg-slate-950/60 hover:bg-slate-950 rounded-xl cursor-pointer transition-all group">
+                                <div class="p-2 rounded-lg bg-slate-900 group-hover:bg-lime-400/10 transition-colors shrink-0">
+                                    <svg class="w-5 h-5 text-slate-400 group-hover:text-lime-400 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                                    </svg>
+                                </div>
+                                <div class="text-left overflow-hidden">
+                                    <p id="certificate-filename" class="text-xs font-semibold text-slate-300 group-hover:text-white transition-colors truncate">Upload Certificate / Proof</p>
+                                    <p class="text-[10px] text-slate-500">Supported formats: PDF or Image</p>
+                                </div>
+                                <input id="signup-certificate" name="certificate" type="file" accept="image/*,.pdf" class="hidden">
+                            </label>
+                        </div>
+
+                        <!-- Submit Button -->
+                        <button type="submit"
+                            class="w-full text-slate-950 bg-lime-400 hover:bg-lime-500 font-bold rounded-xl text-sm px-5 py-3.5 text-center transition-all cursor-pointer shadow-lg shadow-lime-400/10 mt-4">
+                            Register Profile
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tournament Rules Modal -->
+    <div id="rules-modal" tabindex="-1" aria-hidden="true"
+        class="hidden overflow-y-auto overflow-x-hidden fixed inset-0 z-50 justify-center items-center w-full h-full bg-slate-950/80 backdrop-blur-sm p-4">
+        <div class="relative w-full max-w-2xl max-h-full">
+            <div class="relative bg-slate-900 rounded-2xl shadow-2xl border border-slate-800 overflow-hidden">
+                <!-- Header -->
+                <div class="flex items-center justify-between p-5 border-b border-slate-800">
+                    <h3 class="text-xl font-bold text-white flex items-center gap-2">
+                        <span class="text-lime-400"></span> Tournament Rules &amp; Regulations
+                    </h3>
+                    <button type="button"
+                        class="text-slate-500 hover:text-white rounded-lg text-sm w-8 h-8 inline-flex justify-center items-center cursor-pointer hover:bg-slate-800"
+                        data-modal-hide="rules-modal">
+                        <svg class="w-3 h-3" fill="none" viewBox="0 0 14 14">
+                            <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"
+                                d="m1 1 6 6m0 0 6 6M7 7l6-6M7 7l-6 6" />
+                        </svg>
+                    </button>
+                </div>
+                <!-- Rules Content -->
+                <div class="p-6 space-y-4 text-sm text-slate-300 max-h-[60vh] overflow-y-auto">
+                    <div class="p-4 rounded-xl bg-slate-950 border border-slate-800">
+                        <h4 class="font-bold text-lime-400 mb-1">1. Squad Composition &amp; Overs</h4>
+                        <p class="text-slate-400 text-xs leading-relaxed">Each squad fields 7 active players with up to 2 rolling substitutes. Matches are played over 6 overs per side, with a 2-over bowling cap per bowler.</p>
+                    </div>
+                    <div class="p-4 rounded-xl bg-slate-950 border border-slate-800">
+                        <h4 class="font-bold text-lime-400 mb-1">2. Box Boundaries &amp; Scoring</h4>
+                        <p class="text-slate-400 text-xs leading-relaxed">Direct hit on the back boundary wall without bouncing = 6 runs. Grounded hit on the back wall = 4 runs. Ball hitting side nets requires running between wickets.</p>
+                    </div>
+                    <div class="p-4 rounded-xl bg-slate-950 border border-slate-800">
+                        <h4 class="font-bold text-lime-400 mb-1">3. Dismissal Guidelines</h4>
+                        <p class="text-slate-400 text-xs leading-relaxed">Bowled, Caught, Run-out, and Stumped apply. No LBW. One-hand, one-bounce catches off nets or walls count as Out.</p>
+                    </div>
+                    <div class="p-4 rounded-xl bg-slate-950 border border-slate-800">
+                        <h4 class="font-bold text-lime-400 mb-1">4. Campus ID &amp; Fair Play</h4>
+                        <p class="text-slate-400 text-xs leading-relaxed">Valid university ID verification is required prior to toss. The umpire's on-field decision is final.</p>
+                    </div>
+                </div>
+                <!-- Modal Footer -->
+                <div class="p-5 border-t border-slate-800 flex justify-end">
+                    <button type="button" data-modal-hide="rules-modal"
+                        class="bg-lime-400 hover:bg-lime-500 text-slate-950 font-bold px-6 py-2.5 rounded-xl text-sm transition-all cursor-pointer">
+                        Understood &amp; Agree
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sports Certificate Viewer Modal -->
+    <div id="cert-viewer-modal" tabindex="-1" aria-hidden="true" class="hidden fixed inset-0 z-50 justify-center items-center w-full h-full bg-slate-950/85 backdrop-blur-md p-4 overflow-y-auto">
+        <div class="relative p-4 w-full max-w-3xl max-h-[90vh] flex flex-col">
+            <div class="relative bg-slate-900 rounded-3xl shadow-2xl border border-slate-800 flex flex-col overflow-hidden max-h-[85vh]">
+                <!-- Modal Header -->
+                <div class="flex items-center justify-between p-5 border-b border-slate-800 bg-slate-950/50">
+                    <div class="flex items-center gap-3">
+                        <div class="p-2 rounded-xl bg-lime-400/10 text-lime-400 text-lg">📜</div>
+                        <div>
+                            <h3 id="cert-viewer-title" class="text-base font-bold text-white">Sports Certificate</h3>
+                            <p id="cert-viewer-sub" class="text-xs text-slate-400 truncate max-w-xs sm:max-w-md">Athlete Verification Document</p>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <a id="cert-download-link" href="#" target="_blank" download="sports_certificate" class="text-xs font-bold text-slate-300 hover:text-white bg-slate-800 hover:bg-slate-700 px-3 py-1.5 rounded-xl transition-all flex items-center gap-1.5 border border-slate-700">
+                            <span>⬇️ Open / Download</span>
+                        </a>
+                        <button type="button" onclick="closeCertViewerModal()" class="text-slate-400 hover:text-white rounded-xl text-sm w-8 h-8 inline-flex justify-center items-center hover:bg-slate-800 cursor-pointer">
+                            ✕
+                        </button>
+                    </div>
+                </div>
+                <!-- Modal Body -->
+                <div class="p-4 overflow-y-auto flex-1 flex items-center justify-center bg-slate-950/40 min-h-[320px]">
+                    <img id="cert-viewer-img" src="" alt="Sports Certificate" class="hidden max-h-[65vh] w-auto object-contain rounded-xl border border-slate-800 shadow-lg">
+                    <iframe id="cert-viewer-pdf" src="" class="hidden w-full h-[65vh] rounded-xl border border-slate-800"></iframe>
+                    <div id="cert-viewer-empty" class="hidden text-center p-8 text-slate-500">
+                        <p class="text-3xl mb-2">📄</p>
+                        <p class="text-sm font-semibold">No certificate document preview available.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Supabase Client Library & Database Connector -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="supabaseClient.js"></script>
+
+    <!-- Main Application Script -->
+    <script src="script.js"></script>
+</body>
+
+</html>

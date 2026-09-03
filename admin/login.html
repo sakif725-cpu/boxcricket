@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Login - UniBox League 2026</title>
+    <link href="../dist/output.css" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+        }
+    </style>
+    <!-- Instant Redirect if Already Logged In -->
+    <script>
+        if (sessionStorage.getItem('unibox_admin_session')) {
+            window.location.replace('index.html');
+        }
+    </script>
+</head>
+
+<body class="bg-slate-950 text-slate-100 min-h-screen flex items-center justify-center p-4 relative antialiased overflow-hidden">
+    <!-- Ambient Stadium Lighting Background -->
+    <div class="fixed inset-0 pointer-events-none z-0">
+        <div class="absolute -top-32 left-1/2 -translate-x-1/2 w-[600px] h-[600px] bg-lime-500/10 rounded-full blur-[140px]"></div>
+        <div class="absolute bottom-10 left-10 w-[450px] h-[450px] bg-emerald-500/10 rounded-full blur-[160px]"></div>
+    </div>
+
+    <!-- Login Container Card -->
+    <div class="relative z-10 w-full max-w-md">
+        <div class="bg-slate-900/90 border border-slate-800 rounded-3xl p-8 sm:p-10 shadow-2xl backdrop-blur-md">
+            <!-- Header Brand -->
+            <div class="text-center space-y-2 mb-8">
+                <div class="inline-flex w-14 h-14 rounded-2xl bg-gradient-to-tr from-lime-400 to-emerald-500 items-center justify-center text-slate-950 text-2xl shadow-xl shadow-lime-400/20 mb-2">
+                    🏏
+                </div>
+                <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold uppercase tracking-wider bg-rose-500/10 text-rose-400 border border-rose-500/20 mx-auto block w-fit">
+                    <span>Restricted Coordinator Access</span>
+                </div>
+                <h1 class="text-2xl font-black uppercase text-white tracking-tight">Admin Portal</h1>
+                <p class="text-xs text-slate-400">Sign in to manage tournament rosters, clear athletes, and oversee league operations.</p>
+            </div>
+
+            <!-- Error Banner -->
+            <div id="admin-error-box" class="hidden mb-6 p-3.5 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs font-semibold flex items-center gap-2.5">
+                <span class="text-base">⚠️</span>
+                <span id="admin-error-text">Invalid credentials.</span>
+            </div>
+
+            <!-- Admin Authentication Form -->
+            <form id="admin-login-form" class="space-y-4">
+                <!-- Username / Email -->
+                <div>
+                    <label for="admin-identifier" class="block mb-1.5 text-xs font-bold uppercase tracking-wider text-slate-400">
+                        Username or Admin Email
+                    </label>
+                    <input type="text" id="admin-identifier" placeholder="admin or admin@unibox.com" autocomplete="username"
+                        class="bg-slate-950 border border-slate-800 text-white text-sm rounded-xl focus:ring-2 focus:ring-lime-400/20 focus:border-lime-400 block w-full p-3.5 placeholder-slate-600 outline-none transition-all"
+                        required>
+                </div>
+
+                <!-- Password -->
+                <div>
+                    <label for="admin-password" class="block mb-1.5 text-xs font-bold uppercase tracking-wider text-slate-400">
+                        Password
+                    </label>
+                    <input type="password" id="admin-password" placeholder="••••••••" autocomplete="current-password"
+                        class="bg-slate-950 border border-slate-800 text-white text-sm rounded-xl focus:ring-2 focus:ring-lime-400/20 focus:border-lime-400 block w-full p-3.5 placeholder-slate-600 outline-none transition-all"
+                        required>
+                </div>
+
+                <!-- Submit Button -->
+                <button type="submit" id="admin-submit-btn"
+                    class="w-full text-slate-950 bg-lime-400 hover:bg-lime-500 font-bold rounded-xl text-sm px-5 py-3.5 text-center transition-all cursor-pointer shadow-lg shadow-lime-400/20 mt-4 flex items-center justify-center gap-2">
+                    <span id="admin-btn-text">Authenticate & Enter</span>
+                    <svg id="admin-btn-spinner" class="hidden w-4 h-4 text-slate-950 animate-spin" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+                    </svg>
+                </button>
+            </form>
+
+            <!-- Bottom Hint / Return -->
+            <div class="mt-8 pt-6 border-t border-slate-800/80 text-center space-y-3">
+                <div class="text-[11px] text-slate-500 flex items-center justify-center gap-1.5 font-medium">
+                    <span>Default Coordinator:</span>
+                    <span class="font-mono text-slate-400 font-bold bg-slate-950 px-2 py-0.5 rounded border border-slate-800">admin</span>
+                    <span>/</span>
+                    <span class="font-mono text-slate-400 font-bold bg-slate-950 px-2 py-0.5 rounded border border-slate-800">admin2026</span>
+                </div>
+                <div>
+                    <a href="../index.html" class="text-xs text-slate-400 hover:text-white transition-colors">
+                        ← Back to Tournament Public Portal
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="../supabaseClient.js"></script>
+    <script>
+        const adminLoginForm = document.getElementById('admin-login-form');
+        const adminIdentifier = document.getElementById('admin-identifier');
+        const adminPassword = document.getElementById('admin-password');
+        const adminErrorBox = document.getElementById('admin-error-box');
+        const adminErrorText = document.getElementById('admin-error-text');
+        const adminBtnText = document.getElementById('admin-btn-text');
+        const adminBtnSpinner = document.getElementById('admin-btn-spinner');
+        const adminSubmitBtn = document.getElementById('admin-submit-btn');
+
+        adminLoginForm?.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            // Clear previous errors
+            adminErrorBox.classList.add('hidden');
+
+            const identifier = adminIdentifier.value.trim();
+            const password = adminPassword.value;
+
+            // Show loading state
+            adminBtnText.textContent = 'Verifying Credentials...';
+            adminBtnSpinner.classList.remove('hidden');
+            adminSubmitBtn.disabled = true;
+
+            try {
+                if (window.UniBoxDb) {
+                    const result = await window.UniBoxDb.adminLogin(identifier, password);
+
+                    if (result.success && result.admin) {
+                        // Store verified admin session
+                        sessionStorage.setItem('unibox_admin_session', JSON.stringify({
+                            username: result.admin.username,
+                            email: result.admin.email,
+                            role: result.admin.role || 'Lead Coordinator',
+                            timestamp: Date.now()
+                        }));
+
+                        // Redirect to Admin Command Center
+                        window.location.replace('index.html');
+                        return;
+                    } else {
+                        adminErrorText.textContent = result.error || 'Invalid coordinator credentials.';
+                        adminErrorBox.classList.remove('hidden');
+                    }
+                } else {
+                    adminErrorText.textContent = 'Database connection library unavailable.';
+                    adminErrorBox.classList.remove('hidden');
+                }
+            } catch (err) {
+                console.error('Admin login error:', err);
+                adminErrorText.textContent = 'Authentication error. Please try again.';
+                adminErrorBox.classList.remove('hidden');
+            } finally {
+                adminBtnText.textContent = 'Authenticate & Enter';
+                adminBtnSpinner.classList.add('hidden');
+                adminSubmitBtn.disabled = false;
+            }
+        });
+    </script>
+</body>
+
+</html>
+
