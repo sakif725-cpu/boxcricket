@@ -176,14 +176,31 @@ const UniBoxDb = {
             try {
                 const { data, error } = await supabaseClient.from('teams').select('*').order('name');
                 if (!error && Array.isArray(data) && data.length > 0) {
-                    teams = data.map(t => ({
-                        id: t.id,
-                        name: t.name,
-                        department: t.department,
-                        logo: t.logo || '🏏',
-                        color: t.color || '#a3e635',
-                        total_budget: Number(t.total_budget) || 100
-                    }));
+                    const localTeams = JSON.parse(localStorage.getItem('unibox_teams') || '[]');
+                    teams = data.map(t => {
+                        const localMatch = localTeams.find(lt => lt.id === t.id);
+                        return {
+                            id: t.id,
+                            name: t.name,
+                            department: t.department,
+                            logo: t.logo || '🏏',
+                            color: t.color || '#a3e635',
+                            total_budget: Number(t.total_budget) || 100,
+                            owner_name: t.owner_name || localMatch?.owner_name || null,
+                            owner_email: t.owner_email || localMatch?.owner_email || null,
+                            owner_phone: t.owner_phone || localMatch?.owner_phone || null,
+                            password_hash: t.password_hash || localMatch?.password_hash || null,
+                            status: t.status || localMatch?.status || 'Active'
+                        };
+                    });
+
+                    // Preserve any local custom teams not yet in Supabase
+                    localTeams.forEach(lt => {
+                        if (!teams.some(t => t.id === lt.id)) {
+                            teams.push(lt);
+                        }
+                    });
+
                     localStorage.setItem('unibox_teams', JSON.stringify(teams));
                 }
             } catch (err) {}
@@ -233,6 +250,188 @@ const UniBoxDb = {
 
         UniBoxDb.broadcastAuctionEvent({ type: 'TEAM_BUDGET_UPDATED', teamId, totalBudget: budgetNum });
         return { success: true, total_budget: budgetNum };
+    },
+
+    // --- FRANCHISE TEAM OWNER AUTHENTICATION & PORTAL METHODS ---
+    registerTeamOwner: async (ownerData) => {
+        const { ownerName, email, password, phone, teamMode, existingTeamId, customTeamName, department, logo, color } = ownerData;
+
+        if (!ownerName || !email || !password) {
+            return { success: false, error: 'Owner name, email, and password are required.' };
+        }
+
+        const normalizedEmail = email.trim().toLowerCase();
+        const passwordHash = await UniBoxDb.hashPassword(password);
+
+        // Fetch current teams
+        let currentTeams = JSON.parse(localStorage.getItem('unibox_teams') || '[]');
+        if (!currentTeams.length) {
+            currentTeams = DEFAULT_TEAMS.map(t => ({ ...t }));
+        }
+
+        // Check if an owner with this email already exists
+        const emailExists = currentTeams.some(t => t.owner_email && t.owner_email.toLowerCase() === normalizedEmail);
+        if (emailExists) {
+            return { success: false, error: 'A franchise owner is already registered with this email address.' };
+        }
+
+        let targetTeam = null;
+
+        if (teamMode === 'claim') {
+            const teamIdx = currentTeams.findIndex(t => t.id === existingTeamId);
+            if (teamIdx === -1) {
+                return { success: false, error: 'Selected franchise was not found.' };
+            }
+            if (currentTeams[teamIdx].owner_email) {
+                return { success: false, error: `The ${currentTeams[teamIdx].name} franchise has already been claimed by another owner.` };
+            }
+
+            currentTeams[teamIdx] = {
+                ...currentTeams[teamIdx],
+                owner_name: ownerName.trim(),
+                owner_email: normalizedEmail,
+                owner_phone: phone ? phone.trim() : null,
+                password_hash: passwordHash,
+                status: 'Active'
+            };
+            targetTeam = currentTeams[teamIdx];
+        } else {
+            // Custom franchise
+            if (!customTeamName || !department) {
+                return { success: false, error: 'Team name and department are required for custom franchise registration.' };
+            }
+
+            const nameExists = currentTeams.some(t => t.name.toLowerCase() === customTeamName.trim().toLowerCase());
+            if (nameExists) {
+                return { success: false, error: 'A franchise with this name already exists in the tournament.' };
+            }
+
+            const slug = customTeamName.trim().toLowerCase().replace(/[^a-z0-9]/g, '-');
+            const customId = `team-${slug}-${Date.now().toString().slice(-4)}`;
+
+            targetTeam = {
+                id: customId,
+                name: customTeamName.trim(),
+                department: department.trim(),
+                logo: logo || '🏆',
+                color: color || '#a3e635',
+                total_budget: 100,
+                owner_name: ownerName.trim(),
+                owner_email: normalizedEmail,
+                owner_phone: phone ? phone.trim() : null,
+                password_hash: passwordHash,
+                status: 'Active',
+                created_at: new Date().toISOString()
+            };
+            currentTeams.push(targetTeam);
+        }
+
+        localStorage.setItem('unibox_teams', JSON.stringify(currentTeams));
+
+        // Sync to Supabase if ready
+        if (UniBoxDb.isReady()) {
+            try {
+                const teamPayload = {
+                    id: targetTeam.id,
+                    name: targetTeam.name,
+                    department: targetTeam.department,
+                    logo: targetTeam.logo,
+                    color: targetTeam.color,
+                    total_budget: targetTeam.total_budget,
+                    owner_name: targetTeam.owner_name,
+                    owner_email: targetTeam.owner_email,
+                    owner_phone: targetTeam.owner_phone,
+                    password_hash: targetTeam.password_hash,
+                    status: targetTeam.status
+                };
+
+                let { error: sbError } = await supabaseClient.from('teams').upsert([teamPayload], { onConflict: 'id' });
+                if (sbError && (sbError.code === 'PGRST204' || sbError.message?.includes('schema cache') || sbError.code === '42703')) {
+                    const basicPayload = {
+                        id: targetTeam.id,
+                        name: targetTeam.name,
+                        department: targetTeam.department,
+                        logo: targetTeam.logo,
+                        color: targetTeam.color,
+                        total_budget: targetTeam.total_budget
+                    };
+                    await supabaseClient.from('teams').upsert([basicPayload], { onConflict: 'id' });
+                }
+            } catch (err) {
+                console.warn('Supabase team upsert fallback to local storage:', err);
+            }
+        }
+
+        // Set session
+        const sessionData = {
+            email: normalizedEmail,
+            ownerName: targetTeam.owner_name,
+            teamId: targetTeam.id,
+            teamName: targetTeam.name,
+            timestamp: Date.now()
+        };
+        localStorage.setItem('unibox_team_owner_session', JSON.stringify(sessionData));
+
+        // Broadcast registration event
+        UniBoxDb.broadcastAuctionEvent({
+            type: 'TEAM_OWNER_REGISTERED',
+            team: targetTeam,
+            ownerEmail: normalizedEmail
+        });
+
+        return { success: true, team: targetTeam, error: null };
+    },
+
+    loginTeamOwner: async (email, password) => {
+        if (!email || !password) {
+            return { success: false, error: 'Email and password are required.' };
+        }
+
+        const normalizedEmail = email.trim().toLowerCase();
+        const inputHash = await UniBoxDb.hashPassword(password);
+
+        // Fetch all teams
+        const { data: teams } = await UniBoxDb.getAllTeams();
+        const team = teams.find(t => t.owner_email && t.owner_email.toLowerCase() === normalizedEmail);
+
+        if (!team) {
+            return { success: false, error: 'No franchise owner found with this email. Please register first.' };
+        }
+
+        if (team.password_hash && team.password_hash !== inputHash) {
+            return { success: false, error: 'Incorrect password. Please verify your credentials.' };
+        }
+
+        // Set session
+        const sessionData = {
+            email: normalizedEmail,
+            ownerName: team.owner_name,
+            teamId: team.id,
+            teamName: team.name,
+            timestamp: Date.now()
+        };
+        localStorage.setItem('unibox_team_owner_session', JSON.stringify(sessionData));
+
+        return { success: true, team, error: null };
+    },
+
+    getTeamOwnerSession: () => {
+        try {
+            const raw = localStorage.getItem('unibox_team_owner_session');
+            if (raw) return JSON.parse(raw);
+        } catch (e) {}
+        return null;
+    },
+
+    logoutTeamOwner: () => {
+        localStorage.removeItem('unibox_team_owner_session');
+    },
+
+    getTeamByOwnerEmail: async (email) => {
+        if (!email) return { data: null, error: 'Email is required' };
+        const { data: teams } = await UniBoxDb.getAllTeams();
+        const team = teams.find(t => t.owner_email && t.owner_email.toLowerCase() === email.trim().toLowerCase());
+        return { data: team || null, error: team ? null : 'Franchise not found' };
     },
 
     // --- PURCHASE ATHLETE WITH REALTIME LEFTOVER BALANCE DEDUCTION ---
@@ -298,6 +497,7 @@ const UniBoxDb = {
         }
 
         // Instant Realtime Broadcast to all open tabs and windows
+        const updatedSpent = (Number(targetTeam.spent) || 0) + numPrice;
         const updatedBalance = Math.max(0, targetTeam.leftover_balance - numPrice);
         UniBoxDb.broadcastAuctionEvent({
             type: 'PLAYER_PURCHASED',
@@ -310,7 +510,7 @@ const UniBoxDb = {
 
         return {
             success: true,
-            team: { ...targetTeam, leftover_balance: updatedBalance },
+            team: { ...targetTeam, spent: updatedSpent, leftover_balance: updatedBalance },
             player: { id: playerIdOrEmail, sold_to_team: targetTeam.name, sold_price: numPrice, auction_status: 'Sold' }
         };
     },
@@ -380,7 +580,11 @@ const UniBoxDb = {
             try { auctionChannel.postMessage(payload); } catch (e) {}
         }
         if (typeof window !== 'undefined') {
-            window.dispatchEvent(new CustomEvent('unibox_auction_update', { detail: payload }));
+            if (typeof window.dispatchEvent === 'function' && typeof CustomEvent !== 'undefined') {
+                try {
+                    window.dispatchEvent(new CustomEvent('unibox_auction_update', { detail: payload }));
+                } catch (e) {}
+            }
             try {
                 localStorage.setItem('unibox_last_auction_sync', JSON.stringify(payload));
             } catch (e) {}

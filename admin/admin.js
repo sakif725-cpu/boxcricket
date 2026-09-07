@@ -120,6 +120,12 @@ function renderTeamBalanceHUD() {
                         </span>
                     </div>
                     <h4 class="font-black text-white text-sm uppercase truncate group-hover:text-lime-400 transition-colors">${team.name}</h4>
+                    <div class="mt-1 flex items-center gap-1.5 text-[11px] truncate">
+                        <span class="text-amber-400 text-xs">👑</span>
+                        <span class="${team.owner_name ? 'text-amber-300 font-semibold' : 'text-slate-500 font-normal'} truncate">
+                            ${team.owner_name ? team.owner_name : 'No Owner Claimed'}
+                        </span>
+                    </div>
                 </div>
 
                 <!-- Leftover Balance KPI -->
@@ -789,7 +795,8 @@ function openPurchaseModal(playerId) {
     // Populate Team Selector with current live leftover balances
     const teamSelect = document.getElementById('purchase-team-select');
     teamSelect.innerHTML = `<option value="" disabled selected>Choose a franchise...</option>` + allTeams.map(t => {
-        return `<option value="${t.id}">${t.logo} ${t.name} (Leftover Purse: ₹${t.leftover_balance.toFixed(1)} Lakh)</option>`;
+        const ownerTag = t.owner_name ? ` [Owner: ${t.owner_name}]` : '';
+        return `<option value="${t.id}">${t.logo} ${t.name}${ownerTag} (Leftover Purse: ₹${t.leftover_balance.toFixed(1)} Lakh)</option>`;
     }).join('');
 
     // Pre-select first team if available
@@ -954,7 +961,8 @@ function openTeamSquadModal(teamId) {
     const modal = document.getElementById('team-squad-modal');
     document.getElementById('team-squad-logo').textContent = team.logo || '🏏';
     document.getElementById('team-squad-name').textContent = team.name;
-    document.getElementById('team-squad-meta').textContent = `${team.department} Franchise • ${team.squad_count || 0} Players Acquired`;
+    const ownerMeta = team.owner_name ? ` • 👑 Owner: ${team.owner_name}` : '';
+    document.getElementById('team-squad-meta').textContent = `${team.department} Franchise • ${team.squad_count || 0} Players Acquired${ownerMeta}`;
 
     document.getElementById('team-stat-purse').textContent = `₹${team.total_budget.toFixed(1)} L`;
     document.getElementById('team-stat-spent').textContent = `₹${team.spent.toFixed(1)} L`;

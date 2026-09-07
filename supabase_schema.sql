@@ -138,6 +138,15 @@ on conflict (id) do update set
     logo = excluded.logo,
     color = excluded.color;
 
+-- Team Owner Columns Migration (Supports Franchise Owner Authentication & Profiles)
+alter table public.teams add column if not exists owner_name text;
+alter table public.teams add column if not exists owner_email text;
+alter table public.teams add column if not exists password_hash text;
+alter table public.teams add column if not exists owner_phone text;
+alter table public.teams add column if not exists status text default 'Active';
+
+create index if not exists idx_teams_owner_email on public.teams (owner_email);
+
 -- ==============================================================================
 -- 8. RELOAD SUPABASE POSTGREST SCHEMA CACHE
 -- ==============================================================================
