@@ -426,6 +426,9 @@
   .mb-12 {
     margin-bottom: calc(var(--spacing) * 12);
   }
+  .ml-1 {
+    margin-left: var(--spacing);
+  }
   .block {
     display: block;
   }
@@ -1216,6 +1219,9 @@
       background-color: color-mix(in oklab, var(--color-teal-500) 5%, transparent);
     }
   }
+  .bg-transparent {
+    background-color: transparent;
+  }
   .bg-gradient-to-br {
     --tw-gradient-position: to bottom right in oklab;
     background-image: linear-gradient(var(--tw-gradient-stops));
@@ -1617,6 +1623,9 @@
   .uppercase {
     text-transform: uppercase;
   }
+  .italic {
+    font-style: italic;
+  }
   .underline {
     text-decoration-line: underline;
   }
@@ -2017,6 +2026,10 @@
   .focus\:ring-offset-slate-900:focus {
     --tw-ring-offset-color: var(--color-slate-900);
   }
+  .focus\:outline-none:focus {
+    --tw-outline-style: none;
+    outline-style: none;
+  }
   .has-\[\:checked\]\:border-lime-400:has(:is(:checked)) {
     border-color: var(--color-lime-400);
   }
@@ -2128,6 +2141,9 @@
   @media (width >= 48rem) {
     .md\:col-span-2 {
       grid-column: span 2 / span 2;
+    }
+    .md\:inline {
+      display: inline;
     }
     .md\:w-auto {
       width: auto;

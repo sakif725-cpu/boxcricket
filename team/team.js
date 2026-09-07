@@ -3,32 +3,22 @@
 // ==============================================================================
 
 document.addEventListener('DOMContentLoaded', async () => {
-    // 1. AUTHENTICATION GUARD
+    // 1. AUTHENTICATION & SESSION STATE
     const sessionRaw = localStorage.getItem('unibox_team_owner_session');
-    if (!sessionRaw) {
-        window.location.replace('login.html');
-        return;
-    }
-
     let session = null;
     try {
-        session = JSON.parse(sessionRaw);
+        if (sessionRaw) session = JSON.parse(sessionRaw);
     } catch (e) {
         localStorage.removeItem('unibox_team_owner_session');
-        window.location.replace('login.html');
-        return;
-    }
-
-    if (!session || !session.email) {
-        window.location.replace('login.html');
-        return;
     }
 
     // State Variables
+    let allTeams = [];
     let currentTeam = null;
     let currentSquad = [];
     let allTournamentPlayers = [];
     let activeTab = 'squad'; // 'squad' or 'auction'
+    let selectedTeamId = new URLSearchParams(window.location.search).get('team') || null;
 
     // DOM Elements
     const headerLogo = document.getElementById('header-team-logo');
@@ -36,6 +26,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const headerDept = document.getElementById('header-team-dept');
     const headerOwner = document.getElementById('header-owner-name');
     const ambientGlow = document.getElementById('team-ambient-glow');
+    const franchiseSwitchSelect = document.getElementById('franchise-switch-select');
 
     const hudLeftover = document.getElementById('hud-leftover-balance');
     const hudSpent = document.getElementById('hud-spent-amount');
@@ -65,9 +56,18 @@ document.addEventListener('DOMContentLoaded', async () => {
     const refreshBtn = document.getElementById('refresh-squad-btn');
     const refreshIcon = document.getElementById('refresh-icon');
     const logoutBtn = document.getElementById('owner-logout-btn');
+    const ownerLoginNavBtn = document.getElementById('owner-login-nav-btn');
     const switchToAuctionBtn = document.getElementById('switch-to-auction-btn');
 
-    // 2. LOGOUT HANDLER
+    // 2. AUTH BUTTONS TOGGLE
+    if (session && session.email) {
+        if (logoutBtn) logoutBtn.classList.remove('hidden');
+        if (ownerLoginNavBtn) ownerLoginNavBtn.classList.add('hidden');
+    } else {
+        if (logoutBtn) logoutBtn.classList.add('hidden');
+        if (ownerLoginNavBtn) ownerLoginNavBtn.classList.remove('hidden');
+    }
+
     if (logoutBtn) {
         logoutBtn.addEventListener('click', () => {
             localStorage.removeItem('unibox_team_owner_session');
@@ -109,37 +109,74 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
+    // Franchise Switcher Change Handler
+    if (franchiseSwitchSelect) {
+        franchiseSwitchSelect.addEventListener('change', (e) => {
+            selectedTeamId = e.target.value;
+            const chosen = allTeams.find(t => t.id === selectedTeamId);
+            if (chosen) {
+                currentTeam = chosen;
+                currentSquad = chosen.squad || [];
+                renderHeader();
+                renderHUD();
+                renderSquadGrid();
+                if (activeTab === 'auction') renderAuctionWatcherView();
+            }
+        });
+    }
+
     // 4. LOAD FRANCHISE DATA & SQUAD
     async function loadFranchiseData() {
         if (!window.UniBoxDb) return;
 
         try {
-            // Fetch all teams with computed leftover budgets
+            // Fetch all teams with computed leftover budgets & squads
             const { data: teams } = await window.UniBoxDb.getAllTeams();
-            const email = session.email.toLowerCase();
+            allTeams = Array.isArray(teams) ? teams : [];
 
-            // Find this owner's team
-            let team = teams.find(t => t.owner_email && t.owner_email.toLowerCase() === email);
-
-            // Fallback match by teamId or teamName if owner_email not matched yet
-            if (!team && session.teamId) {
-                team = teams.find(t => t.id === session.teamId);
-            }
-            if (!team && session.teamName) {
-                team = teams.find(t => t.name.toLowerCase() === session.teamName.toLowerCase());
-            }
-
-            if (!team) {
-                console.warn('Franchise not found for owner session:', session);
+            if (!allTeams.length) {
+                console.warn('No teams found in database.');
                 return;
             }
 
+            // Determine active team:
+            // 1) Explicitly selected dropdown / URL param
+            // 2) Logged-in session owner's team (by email, teamId, or teamName)
+            // 3) Default to first team with acquired players, or first team in list
+            let team = null;
+
+            if (selectedTeamId) {
+                team = allTeams.find(t => t.id === selectedTeamId);
+            }
+
+            if (!team && session) {
+                const sessionEmail = (session.email || '').toLowerCase().trim();
+                const sessionTeamId = (session.teamId || '').trim();
+                const sessionTeamName = (session.teamName || '').toLowerCase().trim();
+
+                team = allTeams.find(t => t.owner_email && t.owner_email.toLowerCase() === sessionEmail);
+                if (!team && sessionTeamId) team = allTeams.find(t => t.id === sessionTeamId);
+                if (!team && sessionTeamName) team = allTeams.find(t => t.name.toLowerCase() === sessionTeamName);
+            }
+
+            // Default fallback: team with most acquired players, or first team
+            if (!team) {
+                const sortedBySquad = [...allTeams].sort((a, b) => (b.squad_count || 0) - (a.squad_count || 0));
+                team = sortedBySquad[0] || allTeams[0];
+            }
+
+            if (!team) return;
+
             currentTeam = team;
             currentSquad = team.squad || [];
+            selectedTeamId = team.id;
 
             // Also fetch all tournament players for the live auction watcher
             const { data: allPlayers } = await window.UniBoxDb.getAllPlayers();
             allTournamentPlayers = allPlayers || [];
+
+            // Populate Franchise Switcher Dropdown
+            populateFranchiseDropdown();
 
             // Render components
             renderHeader();
@@ -153,6 +190,23 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
 
+    function populateFranchiseDropdown() {
+        if (!franchiseSwitchSelect || !allTeams.length) return;
+
+        franchiseSwitchSelect.innerHTML = allTeams.map(t => {
+            const isUserOwner = session && (
+                (t.owner_email && session.email && t.owner_email.toLowerCase() === session.email.toLowerCase()) ||
+                (session.teamId && t.id === session.teamId) ||
+                (session.teamName && t.name.toLowerCase() === session.teamName.toLowerCase())
+            );
+            const tag = isUserOwner ? ' 👑 (Your Franchise)' : '';
+            const squadTag = (t.squad_count || 0) > 0 ? ` [${t.squad_count} Bought]` : '';
+            const isSelected = currentTeam && t.id === currentTeam.id;
+
+            return `<option value="${t.id}" ${isSelected ? 'selected' : ''} class="text-white bg-slate-900 font-bold">${t.logo || '🏏'} ${t.name}${tag}${squadTag} — ₹${(t.leftover_balance || 0).toFixed(1)}L</option>`;
+        }).join('');
+    }
+
     // 5. RENDER HEADER
     function renderHeader() {
         if (!currentTeam) return;
@@ -160,7 +214,25 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (headerLogo) headerLogo.textContent = currentTeam.logo || '🏏';
         if (headerName) headerName.textContent = currentTeam.name;
         if (headerDept) headerDept.textContent = currentTeam.department;
-        if (headerOwner) headerOwner.textContent = currentTeam.owner_name || session.ownerName || 'Franchise Owner';
+
+        const isUserOwner = session && (
+            (currentTeam.owner_email && session.email && currentTeam.owner_email.toLowerCase() === session.email.toLowerCase()) ||
+            (session.teamId && currentTeam.id === session.teamId) ||
+            (session.teamName && currentTeam.name.toLowerCase() === session.teamName.toLowerCase())
+        );
+
+        if (headerOwner) {
+            if (isUserOwner) {
+                headerOwner.textContent = `${currentTeam.owner_name || session.ownerName || 'You'} (You)`;
+                headerOwner.className = 'text-lime-400 font-bold';
+            } else if (currentTeam.owner_name) {
+                headerOwner.textContent = currentTeam.owner_name;
+                headerOwner.className = 'text-amber-300 font-bold';
+            } else {
+                headerOwner.textContent = 'Unclaimed';
+                headerOwner.className = 'text-slate-400 font-normal italic';
+            }
+        }
 
         // Update ambient glow color if custom color specified
         if (ambientGlow && currentTeam.color) {
@@ -440,17 +512,23 @@ document.addEventListener('DOMContentLoaded', async () => {
             console.log('⚡ Team Owner Dashboard received live auction event:', event);
 
             if (event.type === 'PLAYER_PURCHASED') {
-                const isOurPurchase = currentTeam && (event.teamId === currentTeam.id || event.teamName === currentTeam.name);
+                const teamName = (event.teamName || '').toLowerCase().trim();
+                const currentName = (currentTeam?.name || '').toLowerCase().trim();
+                const isOurPurchase = currentTeam && (event.teamId === currentTeam.id || teamName === currentName);
+
                 if (isOurPurchase) {
                     showToast(`🎉 Squad Acquisition! Purchased for ₹${event.soldPrice} Lakh!`, 'success');
                 } else {
-                    showToast(`Deal Alert: Player acquired by ${event.teamName} for ₹${event.soldPrice}L`, 'info');
+                    showToast(`Deal Alert: Athlete acquired by ${event.teamName} for ₹${event.soldPrice}L`, 'info');
                 }
                 await loadFranchiseData();
             } else if (event.type === 'PLAYER_PURCHASE_REVOKED') {
-                const isOurRefund = currentTeam && (event.refundedTeam === currentTeam.name);
+                const refTeam = (event.refundedTeam || '').toLowerCase().trim();
+                const currentName = (currentTeam?.name || '').toLowerCase().trim();
+                const isOurRefund = currentTeam && (refTeam === currentName);
+
                 if (isOurRefund) {
-                    showToast(`Purchase revoked. ₹${event.refundedPrice} Lakh restored to your purse!`, 'info');
+                    showToast(`Purchase revoked. ₹${event.refundedPrice} Lakh restored to purse!`, 'info');
                 }
                 await loadFranchiseData();
             } else if (event.type === 'TEAM_BUDGET_UPDATED') {
@@ -458,7 +536,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                     showToast(`Franchise budget updated to ₹${event.totalBudget} Lakh`, 'info');
                 }
                 await loadFranchiseData();
-            } else if (event.type === 'PLAYER_REGISTERED' || event.type === 'ROLE_BASE_PRICES_UPDATED') {
+            } else {
+                // Catches SUPABASE_REALTIME, PLAYER_REGISTERED, ROLE_BASE_PRICES_UPDATED, etc.
                 await loadFranchiseData();
             }
         });

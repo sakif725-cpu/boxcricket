@@ -177,8 +177,13 @@ const UniBoxDb = {
                 const { data, error } = await supabaseClient.from('teams').select('*').order('name');
                 if (!error && Array.isArray(data) && data.length > 0) {
                     const localTeams = JSON.parse(localStorage.getItem('unibox_teams') || '[]');
+                    const registry = JSON.parse(localStorage.getItem('unibox_team_owners_registry') || '{}');
+                    const session = UniBoxDb.getTeamOwnerSession();
+
                     teams = data.map(t => {
-                        const localMatch = localTeams.find(lt => lt.id === t.id);
+                        const localMatch = localTeams.find(lt => lt.id === t.id || (lt.name && lt.name.toLowerCase() === t.name.toLowerCase()));
+                        const regMatch = registry[t.id] || registry[t.name.toLowerCase()] || (session && (session.teamId === t.id || session.teamName?.toLowerCase() === t.name.toLowerCase()) ? registry[session.email] : null);
+
                         return {
                             id: t.id,
                             name: t.name,
@@ -186,10 +191,10 @@ const UniBoxDb = {
                             logo: t.logo || '🏏',
                             color: t.color || '#a3e635',
                             total_budget: Number(t.total_budget) || 100,
-                            owner_name: t.owner_name || localMatch?.owner_name || null,
-                            owner_email: t.owner_email || localMatch?.owner_email || null,
-                            owner_phone: t.owner_phone || localMatch?.owner_phone || null,
-                            password_hash: t.password_hash || localMatch?.password_hash || null,
+                            owner_name: t.owner_name || localMatch?.owner_name || regMatch?.owner_name || (session && session.teamId === t.id ? session.ownerName : null),
+                            owner_email: t.owner_email || localMatch?.owner_email || regMatch?.owner_email || (session && session.teamId === t.id ? session.email : null),
+                            owner_phone: t.owner_phone || localMatch?.owner_phone || regMatch?.owner_phone || null,
+                            password_hash: t.password_hash || localMatch?.password_hash || regMatch?.password_hash || null,
                             status: t.status || localMatch?.status || 'Active'
                         };
                     });
@@ -210,10 +215,14 @@ const UniBoxDb = {
         const { data: players } = await UniBoxDb.getAllPlayers();
 
         const enrichedTeams = teams.map(team => {
+            const teamName = (team.name || '').trim().toLowerCase();
+            const teamId = (team.id || '').trim().toLowerCase();
+
             const teamSquad = (players || []).filter(p => {
                 const soldTeam = (p.sold_to_team || '').trim().toLowerCase();
-                const soldTeamId = (p.sold_to_team_id || '').trim();
-                return (soldTeam && soldTeam === team.name.toLowerCase()) || (soldTeamId && soldTeamId === team.id);
+                const soldTeamId = (p.sold_to_team_id || '').trim().toLowerCase();
+                return (soldTeam && (soldTeam === teamName || soldTeam === teamId)) ||
+                       (soldTeamId && (soldTeamId === teamId || soldTeamId === teamName));
             });
 
             const spent = teamSquad.reduce((sum, p) => sum + (Number(p.sold_price) || 0), 0);
@@ -362,6 +371,23 @@ const UniBoxDb = {
             }
         }
 
+        // Persist to team owners registry for resilient cross-tab and offline recovery
+        try {
+            const registry = JSON.parse(localStorage.getItem('unibox_team_owners_registry') || '{}');
+            const regData = {
+                owner_name: targetTeam.owner_name,
+                owner_email: normalizedEmail,
+                owner_phone: targetTeam.owner_phone,
+                password_hash: passwordHash,
+                team_id: targetTeam.id,
+                team_name: targetTeam.name
+            };
+            registry[targetTeam.id] = regData;
+            registry[targetTeam.name.toLowerCase()] = regData;
+            registry[normalizedEmail] = regData;
+            localStorage.setItem('unibox_team_owners_registry', JSON.stringify(registry));
+        } catch (e) {}
+
         // Set session
         const sessionData = {
             email: normalizedEmail,
@@ -392,7 +418,18 @@ const UniBoxDb = {
 
         // Fetch all teams
         const { data: teams } = await UniBoxDb.getAllTeams();
-        const team = teams.find(t => t.owner_email && t.owner_email.toLowerCase() === normalizedEmail);
+        const registry = JSON.parse(localStorage.getItem('unibox_team_owners_registry') || '{}');
+        const regEntry = registry[normalizedEmail];
+
+        let team = teams.find(t => t.owner_email && t.owner_email.toLowerCase() === normalizedEmail);
+        if (!team && regEntry) {
+            team = teams.find(t => t.id === regEntry.team_id || t.name.toLowerCase() === (regEntry.team_name || '').toLowerCase());
+            if (team) {
+                team.owner_name = team.owner_name || regEntry.owner_name;
+                team.owner_email = team.owner_email || regEntry.owner_email;
+                team.password_hash = team.password_hash || regEntry.password_hash;
+            }
+        }
 
         if (!team) {
             return { success: false, error: 'No franchise owner found with this email. Please register first.' };
@@ -405,7 +442,7 @@ const UniBoxDb = {
         // Set session
         const sessionData = {
             email: normalizedEmail,
-            ownerName: team.owner_name,
+            ownerName: team.owner_name || regEntry?.owner_name || 'Franchise Owner',
             teamId: team.id,
             teamName: team.name,
             timestamp: Date.now()

@@ -277,6 +277,12 @@
                 if (colorHexLabel) colorHexLabel.textContent = e.target.value;
             });
 
+            // Check existing session
+            const existingSession = window.UniBoxDb ? window.UniBoxDb.getTeamOwnerSession() : null;
+            if (existingSession && existingSession.email) {
+                showAlert(`Signed in as ${existingSession.ownerName || 'Owner'} (${existingSession.teamName || 'Franchise'}). <a href="index.html" class="underline font-bold text-lime-400 ml-1">Go to Dashboard →</a>`, true);
+            }
+
             // Populate Claim Dropdown
             async function populateClaimDropdown() {
                 if (!window.UniBoxDb) return;
@@ -284,8 +290,8 @@
                     const { data: teams } = await window.UniBoxDb.getAllTeams();
                     if (!claimSelect) return;
                     claimSelect.innerHTML = (teams || []).map(t => {
-                        const isClaimed = Boolean(t.owner_email);
-                        const label = `${t.logo || '🏏'} ${t.name} (${t.department}) ${isClaimed ? '— [Already Claimed]' : '— [Available]'}`;
+                        const isClaimed = Boolean(t.owner_email || t.owner_name);
+                        const label = `${t.logo || '🏏'} ${t.name} (${t.department}) ${isClaimed ? `— [Claimed: ${t.owner_name || 'Assigned'}]` : '— [Available]'}`;
                         return `<option value="${t.id}" ${isClaimed ? 'disabled class="text-slate-600 bg-slate-950"' : 'class="text-white bg-slate-900"'}>${label}</option>`;
                     }).join('');
                 } catch (e) {
