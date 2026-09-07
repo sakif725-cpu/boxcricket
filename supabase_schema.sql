@@ -83,4 +83,60 @@ insert into public.admins (username, email, password_hash, role)
 values ('admin', 'admin@unibox.com', '819ad992a50989f76e1e5fe6d2167e370dabae02fb8ac8b0add58c6a23134f23', 'Lead Coordinator')
 on conflict (username) do nothing;
 
+-- ==============================================================================
+-- 6. PLAYER AUCTION COLUMNS MIGRATION
+-- ==============================================================================
+alter table public.players add column if not exists base_price numeric default 0;
+alter table public.players add column if not exists sold_price numeric default 0;
+alter table public.players add column if not exists sold_to_team text;
+alter table public.players add column if not exists auction_status text default 'Upcoming';
+
+-- ==============================================================================
+-- 7. TOURNAMENT TEAMS & BUDGET TABLE
+-- ==============================================================================
+create table if not exists public.teams (
+    id text primary key,
+    name text not null,
+    department text not null,
+    logo text not null,
+    color text default '#a3e635' not null,
+    total_budget numeric default 100 not null,
+    created_at timestamp with time zone default timezone('utc'::text, now()) not null
+);
+
+-- Enable RLS for teams
+alter table public.teams enable row level security;
+
+-- Allow public read access to teams
+create policy "Allow public read teams" 
+    on public.teams 
+    for select 
+    using (true);
+
+-- Allow public insert/update to teams
+create policy "Allow public update teams" 
+    on public.teams 
+    for update 
+    using (true);
+
+create policy "Allow public insert teams" 
+    on public.teams 
+    for insert 
+    with check (true);
+
+-- Seed Default University Department Franchises (Purse: 100 Lakhs each)
+insert into public.teams (id, name, department, logo, color, total_budget)
+values 
+    ('team-btech', 'B.Tech Titans', 'B.Tech', '⚡', '#38bdf8', 100),
+    ('team-bca', 'BCA Blasters', 'BCA', '🏏', '#a3e635', 100),
+    ('team-bba', 'BBA Bulls', 'BBA', '🐂', '#fbbf24', 100),
+    ('team-mca', 'MCA Mavericks', 'MCA', '🦅', '#34d399', 100),
+    ('team-mba', 'MBA Monarchs', 'MBA', '👑', '#c084fc', 100)
+on conflict (id) do update set
+    name = excluded.name,
+    department = excluded.department,
+    logo = excluded.logo,
+    color = excluded.color;
+
+
 

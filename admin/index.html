@@ -159,6 +159,38 @@
             </div>
         </section>
 
+        <!-- Live Tournament Franchises & Realtime Balance Reflection HUD -->
+        <section class="bg-slate-900/50 border border-slate-800 rounded-3xl p-6 sm:p-7 backdrop-blur-sm shadow-xl space-y-5">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-800/80 pb-4">
+                <div>
+                    <div class="flex items-center gap-2">
+                        <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-lime-400/10 text-lime-400 border border-lime-400/20">
+                            <span class="w-1.5 h-1.5 rounded-full bg-lime-400 animate-ping"></span> Live Auction Hub
+                        </span>
+                        <span class="text-xs text-slate-500 font-mono">5 Competing Department Franchises</span>
+                    </div>
+                    <h2 class="text-xl sm:text-2xl font-black text-white uppercase tracking-tight mt-1">
+                        Franchise Purse &amp; <span class="bg-gradient-to-r from-lime-400 via-emerald-400 to-teal-400 bg-clip-text text-transparent">Leftover Balance</span>
+                    </h2>
+                    <p class="text-xs text-slate-400 mt-0.5">Realtime budget deductions after purchasing players. Click any franchise to view current squad.</p>
+                </div>
+                <div class="flex items-center gap-2.5">
+                    <button id="btn-config-base-prices" type="button" onclick="openBasePriceModal()"
+                        class="text-xs font-bold text-lime-400 hover:text-slate-950 bg-lime-400/10 hover:bg-lime-400 border border-lime-400/30 px-4 py-2.5 rounded-xl transition-all cursor-pointer flex items-center gap-2 shadow-sm">
+                        <span>⚙️ Base Prices (Role Defaults)</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Dynamic Team Cards Container -->
+            <div id="teams-hud-container" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+                <div class="col-span-full py-8 text-center text-slate-500 text-xs">
+                    <div class="w-6 h-6 border-2 border-lime-400 border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
+                    Loading tournament team balances...
+                </div>
+            </div>
+        </section>
+
         <!-- Master Roster Management Panel -->
         <section class="bg-slate-900/50 border border-slate-800 rounded-3xl overflow-hidden backdrop-blur-sm shadow-2xl">
             <!-- Header & Filter Bar -->
@@ -166,16 +198,19 @@
                 <div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
                     <div>
                         <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold bg-lime-400/10 text-lime-400 border border-lime-400/20 mb-2">
-                            <span>Official Clearance Ledger</span>
+                            <span>Official Clearance &amp; Auction Ledger</span>
                         </div>
                         <h2 class="text-2xl sm:text-3xl font-black text-white uppercase tracking-tight">
                             Registered Athlete <span class="bg-gradient-to-r from-lime-400 via-emerald-400 to-teal-400 bg-clip-text text-transparent">Roster</span>
                         </h2>
-                        <p class="text-xs sm:text-sm text-slate-400 mt-1">Review athlete credentials, verify photos, and clear players for tournament matches.</p>
+                        <p class="text-xs sm:text-sm text-slate-400 mt-1">Review athlete credentials, set player base prices, and purchase athletes for teams.</p>
                     </div>
 
                     <!-- Action Buttons -->
                     <div class="flex items-center gap-3 w-full md:w-auto justify-end flex-wrap">
+                        <button type="button" onclick="openBasePriceModal()" class="text-xs font-bold text-lime-400 hover:text-slate-950 bg-lime-400/10 hover:bg-lime-400 border border-lime-400/30 px-3.5 py-2.5 rounded-xl transition-all cursor-pointer flex items-center gap-1.5">
+                            <span>🏷️ Base Price Config</span>
+                        </button>
                         <button id="export-csv-btn" type="button" class="text-xs font-bold text-slate-300 hover:text-white bg-slate-800 hover:bg-slate-700 border border-slate-700 px-4 py-2.5 rounded-xl transition-all cursor-pointer flex items-center gap-2">
                             <svg class="w-4 h-4 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -192,7 +227,7 @@
                 </div>
 
                 <!-- Multi-Criteria Filter Controls -->
-                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 pt-2">
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 pt-2">
                     <!-- Search Input -->
                     <div class="relative">
                         <span class="absolute inset-y-0 left-0 flex items-center pl-3.5 pointer-events-none text-slate-500">
@@ -237,6 +272,15 @@
                             <option value="Rejected">Rejected</option>
                         </select>
                     </div>
+
+                    <!-- Auction Filter -->
+                    <div>
+                        <select id="filter-auction" class="bg-slate-950 border border-slate-800 text-slate-300 text-xs rounded-xl focus:ring-2 focus:ring-lime-400/20 focus:border-lime-400 block w-full px-3 py-3 outline-none transition-all">
+                            <option value="ALL">All Auction Statuses</option>
+                            <option value="Upcoming">Available / Unsold</option>
+                            <option value="Sold">Sold / Purchased</option>
+                        </select>
+                    </div>
                 </div>
             </div>
 
@@ -246,18 +290,19 @@
                     <thead>
                         <tr class="border-b border-slate-800 bg-slate-950/80 text-[11px] font-bold text-slate-400 uppercase tracking-wider">
                             <th scope="col" class="py-4 px-6">Athlete Profile</th>
-                            <th scope="col" class="py-4 px-4">Enrollment ID</th>
-                            <th scope="col" class="py-4 px-4">Department</th>
-                            <th scope="col" class="py-4 px-4">Playing Role</th>
-                            <th scope="col" class="py-4 px-4">Certificate</th>
-                            <th scope="col" class="py-4 px-4">Clearance Status</th>
+                            <th scope="col" class="py-4 px-3">Enrollment</th>
+                            <th scope="col" class="py-4 px-3">Branch</th>
+                            <th scope="col" class="py-4 px-3">Playing Role</th>
+                            <th scope="col" class="py-4 px-3">Base Price</th>
+                            <th scope="col" class="py-4 px-3">Clearance</th>
+                            <th scope="col" class="py-4 px-4">Auction Status</th>
                             <th scope="col" class="py-4 px-6 text-right no-print">Actions</th>
                         </tr>
                     </thead>
                     <tbody id="roster-table-body" class="divide-y divide-slate-800/60 font-medium text-slate-300">
                         <!-- Dynamic Player Rows rendered via admin.js -->
                         <tr>
-                            <td colspan="7" class="py-12 text-center text-slate-500">
+                            <td colspan="8" class="py-12 text-center text-slate-500">
                                 <div class="flex flex-col items-center justify-center gap-3">
                                     <div class="w-8 h-8 border-2 border-lime-400 border-t-transparent rounded-full animate-spin"></div>
                                     <p class="text-xs">Connecting to Supabase and retrieving athletes...</p>
@@ -327,6 +372,20 @@
                             <p class="text-slate-500 font-bold uppercase tracking-wider text-[10px]">Playing Role</p>
                             <p id="modal-role" class="text-lime-400 font-bold mt-0.5">---</p>
                         </div>
+                        <div>
+                            <p class="text-slate-500 font-bold uppercase tracking-wider text-[10px]">Base Price</p>
+                            <div class="flex items-center gap-2 mt-0.5">
+                                <span id="modal-base-price" class="text-white font-mono font-bold">₹20.0 Lakh</span>
+                                <button type="button" id="modal-edit-price-btn" class="text-[11px] text-lime-400 hover:text-white font-semibold underline cursor-pointer">Edit</button>
+                            </div>
+                        </div>
+                        <div class="col-span-2 pt-2 border-t border-slate-900 flex items-center justify-between">
+                            <div>
+                                <p class="text-slate-500 font-bold uppercase tracking-wider text-[10px]">Auction Clearance &amp; Team</p>
+                                <p id="modal-auction-status" class="text-slate-200 font-semibold mt-0.5 text-xs">Upcoming / Available</p>
+                            </div>
+                            <div id="modal-sold-badge-container"></div>
+                        </div>
                         <div class="col-span-2 pt-2 border-t border-slate-900 flex items-center justify-between gap-3">
                             <div class="overflow-hidden">
                                 <p class="text-slate-500 font-bold uppercase tracking-wider text-[10px]">Sports Certificate</p>
@@ -343,11 +402,14 @@
                     </div>
 
                     <!-- Modal Actions -->
-                    <div class="flex items-center justify-between gap-3 pt-2">
+                    <div class="flex items-center justify-between gap-3 pt-2 flex-wrap">
                         <button id="modal-delete-btn" type="button" class="text-xs font-bold text-rose-400 hover:text-rose-300 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 px-4 py-3 rounded-xl transition-all cursor-pointer">
                             Delete Entry
                         </button>
-                        <div class="flex items-center gap-2">
+                        <div class="flex items-center gap-2 flex-wrap">
+                            <button id="modal-purchase-btn" type="button" class="hidden text-xs font-bold text-slate-950 bg-gradient-to-r from-lime-400 to-emerald-400 hover:from-lime-500 hover:to-emerald-500 px-4 py-3 rounded-xl transition-all cursor-pointer shadow-lg shadow-lime-400/20 flex items-center gap-1.5">
+                                <span>🔨 Purchase Athlete</span>
+                            </button>
                             <button id="modal-reject-btn" type="button" class="text-xs font-bold text-amber-400 hover:text-amber-300 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/20 px-4 py-3 rounded-xl transition-all cursor-pointer">
                                 Reject
                             </button>
@@ -396,6 +458,299 @@
                     <div id="cert-viewer-empty" class="hidden text-center p-8 text-slate-500">
                         <p class="text-3xl mb-2">📄</p>
                         <p class="text-sm font-semibold">No certificate document preview available.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 1. Role Base Price Configuration Modal -->
+    <div id="base-price-modal" tabindex="-1" aria-hidden="true" class="hidden fixed inset-0 z-50 justify-center items-center w-full h-full bg-slate-950/80 backdrop-blur-sm p-4 overflow-y-auto">
+        <div class="relative w-full max-w-lg">
+            <div class="relative bg-slate-900 rounded-3xl shadow-2xl border border-slate-800 overflow-hidden">
+                <!-- Modal Header -->
+                <div class="p-6 border-b border-slate-800/80 flex items-center justify-between bg-slate-950/40">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-2xl bg-lime-400/10 text-lime-400 border border-lime-400/20 flex items-center justify-center font-bold text-lg">
+                            💰
+                        </div>
+                        <div>
+                            <h3 class="text-lg font-black text-white uppercase tracking-tight">Role Base Price Settings</h3>
+                            <p class="text-xs text-slate-400">Configure starting auction base price per player role.</p>
+                        </div>
+                    </div>
+                    <button type="button" onclick="closeBasePriceModal()" class="text-slate-400 hover:text-white rounded-xl text-sm w-8 h-8 inline-flex justify-center items-center hover:bg-slate-800 cursor-pointer">
+                        ✕
+                    </button>
+                </div>
+
+                <!-- Form Body -->
+                <form id="base-price-form" onsubmit="handleSaveBasePrices(event)" class="p-6 space-y-4">
+                    <div class="space-y-3 text-xs">
+                        <!-- Batter / Batsman -->
+                        <div class="flex items-center justify-between p-3.5 rounded-2xl bg-slate-950 border border-slate-800">
+                            <div>
+                                <span class="font-bold text-sky-400">🏏 Batter / Batsman</span>
+                                <p class="text-[11px] text-slate-500">Top-order and middle-order specialist</p>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <span class="text-slate-400 font-bold">₹</span>
+                                <input id="price-batter" type="number" min="0" step="0.5" value="20" required
+                                    class="w-20 bg-slate-900 border border-slate-700 text-white font-bold rounded-xl px-2.5 py-1.5 text-center text-xs focus:ring-2 focus:ring-lime-400 focus:border-lime-400 outline-none">
+                                <span class="text-slate-400 font-bold">Lakh</span>
+                            </div>
+                        </div>
+
+                        <!-- Bowler -->
+                        <div class="flex items-center justify-between p-3.5 rounded-2xl bg-slate-950 border border-slate-800">
+                            <div>
+                                <span class="font-bold text-teal-400">🎯 Bowler</span>
+                                <p class="text-[11px] text-slate-500">Fast, pace, and spin specialist</p>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <span class="text-slate-400 font-bold">₹</span>
+                                <input id="price-bowler" type="number" min="0" step="0.5" value="5" required
+                                    class="w-20 bg-slate-900 border border-slate-700 text-white font-bold rounded-xl px-2.5 py-1.5 text-center text-xs focus:ring-2 focus:ring-lime-400 focus:border-lime-400 outline-none">
+                                <span class="text-slate-400 font-bold">Lakh</span>
+                            </div>
+                        </div>
+
+                        <!-- All-Rounder -->
+                        <div class="flex items-center justify-between p-3.5 rounded-2xl bg-slate-950 border border-slate-800">
+                            <div>
+                                <span class="font-bold text-lime-400">⚡ All-Rounder</span>
+                                <p class="text-[11px] text-slate-500">Batting and bowling capability</p>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <span class="text-slate-400 font-bold">₹</span>
+                                <input id="price-allrounder" type="number" min="0" step="0.5" value="15" required
+                                    class="w-20 bg-slate-900 border border-slate-700 text-white font-bold rounded-xl px-2.5 py-1.5 text-center text-xs focus:ring-2 focus:ring-lime-400 focus:border-lime-400 outline-none">
+                                <span class="text-slate-400 font-bold">Lakh</span>
+                            </div>
+                        </div>
+
+                        <!-- Wicketkeeper -->
+                        <div class="flex items-center justify-between p-3.5 rounded-2xl bg-slate-950 border border-slate-800">
+                            <div>
+                                <span class="font-bold text-amber-400">🧤 Wicketkeeper</span>
+                                <p class="text-[11px] text-slate-500">Keeper and top gloveman</p>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <span class="text-slate-400 font-bold">₹</span>
+                                <input id="price-wicketkeeper" type="number" min="0" step="0.5" value="10" required
+                                    class="w-20 bg-slate-900 border border-slate-700 text-white font-bold rounded-xl px-2.5 py-1.5 text-center text-xs focus:ring-2 focus:ring-lime-400 focus:border-lime-400 outline-none">
+                                <span class="text-slate-400 font-bold">Lakh</span>
+                            </div>
+                        </div>
+
+                        <!-- Fielder -->
+                        <div class="flex items-center justify-between p-3.5 rounded-2xl bg-slate-950 border border-slate-800">
+                            <div>
+                                <span class="font-bold text-emerald-400">🛡️ Fielder</span>
+                                <p class="text-[11px] text-slate-500">Outfield and athletic cover</p>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <span class="text-slate-400 font-bold">₹</span>
+                                <input id="price-fielder" type="number" min="0" step="0.5" value="5" required
+                                    class="w-20 bg-slate-900 border border-slate-700 text-white font-bold rounded-xl px-2.5 py-1.5 text-center text-xs focus:ring-2 focus:ring-lime-400 focus:border-lime-400 outline-none">
+                                <span class="text-slate-400 font-bold">Lakh</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="p-3 bg-slate-950/60 rounded-xl border border-slate-800 text-[11px] text-slate-400 flex items-center justify-between">
+                        <span>💡 Example: Batsman 20 Lakh, Bowler 5 Lakh</span>
+                        <button type="button" onclick="applyRolePricesToAllPlayers()" class="text-lime-400 hover:underline font-bold">Apply to All Roster</button>
+                    </div>
+
+                    <div class="flex items-center justify-end gap-3 pt-2">
+                        <button type="button" onclick="closeBasePriceModal()" class="text-xs font-bold text-slate-400 hover:text-white px-4 py-2.5 rounded-xl border border-slate-800 hover:bg-slate-800 cursor-pointer">
+                            Cancel
+                        </button>
+                        <button type="submit" class="text-xs font-bold text-slate-950 bg-lime-400 hover:bg-lime-500 px-5 py-2.5 rounded-xl transition-all cursor-pointer shadow-lg shadow-lime-400/20">
+                            Save Base Price Defaults
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- 2. Player Purchase Modal (Live Bidding / Sale to Team) -->
+    <div id="purchase-modal" tabindex="-1" aria-hidden="true" class="hidden fixed inset-0 z-50 justify-center items-center w-full h-full bg-slate-950/80 backdrop-blur-sm p-4 overflow-y-auto">
+        <div class="relative w-full max-w-lg">
+            <div class="relative bg-slate-900 rounded-3xl shadow-2xl border border-slate-800 overflow-hidden">
+                <!-- Modal Header -->
+                <div class="p-6 border-b border-slate-800/80 flex items-center justify-between bg-slate-950/40">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-2xl bg-gradient-to-tr from-lime-400 to-emerald-500 flex items-center justify-center text-slate-950 font-black text-xl shadow-lg shadow-lime-400/20">
+                            🔨
+                        </div>
+                        <div>
+                            <h3 class="text-lg font-black text-white uppercase tracking-tight">Purchase Athlete</h3>
+                            <p class="text-xs text-slate-400">Deduct from team leftover balance in real time.</p>
+                        </div>
+                    </div>
+                    <button type="button" onclick="closePurchaseModal()" class="text-slate-400 hover:text-white rounded-xl text-sm w-8 h-8 inline-flex justify-center items-center hover:bg-slate-800 cursor-pointer">
+                        ✕
+                    </button>
+                </div>
+
+                <!-- Form Content -->
+                <form id="purchase-form" onsubmit="handleExecutePurchase(event)" class="p-6 space-y-5">
+                    <!-- Athlete Summary Strip -->
+                    <div class="flex items-center gap-4 p-4 rounded-2xl bg-slate-950 border border-slate-800">
+                        <img id="purchase-player-photo" src="" alt="Photo" class="w-14 h-14 rounded-2xl object-cover border border-slate-800 shrink-0 hidden">
+                        <div id="purchase-player-avatar" class="w-14 h-14 rounded-2xl bg-slate-800 border border-slate-700 flex items-center justify-center font-bold text-white text-lg shrink-0">🏏</div>
+                        <div class="overflow-hidden flex-1">
+                            <h4 id="purchase-player-name" class="text-base font-black text-white uppercase truncate">Athlete Name</h4>
+                            <div class="flex items-center gap-2 mt-1 flex-wrap text-xs">
+                                <span id="purchase-player-dept" class="text-slate-400 font-semibold">Department</span>
+                                <span class="text-slate-600">•</span>
+                                <span id="purchase-player-role" class="text-lime-400 font-bold">Role</span>
+                            </div>
+                        </div>
+                        <div class="text-right shrink-0">
+                            <p class="text-[10px] uppercase font-bold text-slate-500 tracking-wider">Base Price</p>
+                            <p id="purchase-player-base" class="text-sm font-black text-lime-400 font-mono">₹20.0 L</p>
+                        </div>
+                    </div>
+
+                    <!-- Target Team Selector -->
+                    <div>
+                        <label for="purchase-team-select" class="block mb-2 text-xs font-bold uppercase tracking-wider text-slate-400">
+                            Purchasing Franchise
+                        </label>
+                        <select id="purchase-team-select" onchange="updatePurchaseBalancePreview()" required
+                            class="bg-slate-950 border border-slate-800 text-white text-xs rounded-xl focus:ring-2 focus:ring-lime-400/20 focus:border-lime-400 block w-full px-3 py-3.5 outline-none transition-all cursor-pointer">
+                            <option value="" disabled selected>Choose a franchise...</option>
+                        </select>
+                    </div>
+
+                    <!-- Final Sold / Purchase Price Input -->
+                    <div>
+                        <div class="flex items-center justify-between mb-2">
+                            <label for="purchase-price-input" class="text-xs font-bold uppercase tracking-wider text-slate-400">
+                                Purchase Price (in Lakhs)
+                            </label>
+                            <span class="text-[11px] text-slate-500">Min: Player Base Price</span>
+                        </div>
+                        <div class="relative">
+                            <span class="absolute inset-y-0 left-0 flex items-center pl-3.5 pointer-events-none text-lime-400 font-bold text-sm">₹</span>
+                            <input id="purchase-price-input" type="number" min="1" step="0.5" oninput="updatePurchaseBalancePreview()" required
+                                class="bg-slate-950 border border-slate-800 text-white text-sm font-bold rounded-xl focus:ring-2 focus:ring-lime-400/20 focus:border-lime-400 block w-full pl-8 pr-16 py-3.5 outline-none transition-all">
+                            <span class="absolute inset-y-0 right-0 flex items-center pr-3.5 pointer-events-none text-slate-400 text-xs font-bold">Lakh</span>
+                        </div>
+                    </div>
+
+                    <!-- Realtime Balance Reflection Preview Box -->
+                    <div id="purchase-preview-card" class="p-4 rounded-2xl bg-slate-950 border border-slate-800/80 space-y-2.5 text-xs">
+                        <div class="flex items-center justify-between text-slate-400">
+                            <span>Current Team Leftover Balance:</span>
+                            <span id="preview-current-balance" class="font-bold text-white font-mono">₹100.0 Lakh</span>
+                        </div>
+                        <div class="flex items-center justify-between text-slate-400">
+                            <span>Purchase Deduction:</span>
+                            <span id="preview-deduction" class="font-bold text-rose-400 font-mono">- ₹20.0 Lakh</span>
+                        </div>
+                        <div class="border-t border-slate-800 pt-2 flex items-center justify-between font-bold">
+                            <span class="text-slate-200">Balance After Purchase:</span>
+                            <span id="preview-new-balance" class="text-emerald-400 text-sm font-black font-mono">₹80.0 Lakh</span>
+                        </div>
+                        <p id="purchase-error-msg" class="hidden text-rose-400 font-semibold text-[11px] pt-1">⚠️ Error message</p>
+                    </div>
+
+                    <!-- Submit Actions -->
+                    <div class="flex items-center justify-end gap-3 pt-2">
+                        <button type="button" onclick="closePurchaseModal()" class="text-xs font-bold text-slate-400 hover:text-white px-4 py-3 rounded-xl border border-slate-800 hover:bg-slate-800 cursor-pointer">
+                            Cancel
+                        </button>
+                        <button id="purchase-submit-btn" type="submit" class="text-xs font-black text-slate-950 bg-lime-400 hover:bg-lime-500 px-6 py-3 rounded-xl transition-all cursor-pointer shadow-lg shadow-lime-400/20 flex items-center gap-2">
+                            <span>Confirm Purchase &amp; Deduct Purse</span>
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- 3. Quick Edit Individual Athlete Base Price Modal -->
+    <div id="edit-base-price-modal" tabindex="-1" aria-hidden="true" class="hidden fixed inset-0 z-50 justify-center items-center w-full h-full bg-slate-950/80 backdrop-blur-sm p-4">
+        <div class="relative w-full max-w-sm">
+            <div class="relative bg-slate-900 rounded-3xl shadow-2xl border border-slate-800 p-6 space-y-4">
+                <div class="flex items-center justify-between">
+                    <h3 class="text-base font-black text-white uppercase">Set Athlete Base Price</h3>
+                    <button type="button" onclick="closeEditBasePriceModal()" class="text-slate-400 hover:text-white text-sm">✕</button>
+                </div>
+                <p id="edit-base-player-name" class="text-xs text-slate-400 font-semibold truncate">Athlete Name</p>
+                <form id="edit-base-price-form" onsubmit="handleSavePlayerBasePrice(event)" class="space-y-4">
+                    <div class="relative">
+                        <span class="absolute inset-y-0 left-0 flex items-center pl-3.5 pointer-events-none text-lime-400 font-bold text-sm">₹</span>
+                        <input id="edit-base-price-input" type="number" min="0" step="0.5" required
+                            class="bg-slate-950 border border-slate-800 text-white text-sm font-bold rounded-xl focus:ring-2 focus:ring-lime-400 focus:border-lime-400 block w-full pl-8 pr-16 py-3 outline-none">
+                        <span class="absolute inset-y-0 right-0 flex items-center pr-3.5 pointer-events-none text-slate-400 text-xs font-bold">Lakh</span>
+                    </div>
+                    <div class="flex items-center justify-end gap-2">
+                        <button type="button" onclick="closeEditBasePriceModal()" class="text-xs font-bold text-slate-400 px-3 py-2 rounded-xl border border-slate-800 hover:bg-slate-800">Cancel</button>
+                        <button type="submit" class="text-xs font-bold text-slate-950 bg-lime-400 hover:bg-lime-500 px-4 py-2 rounded-xl shadow-md shadow-lime-400/20">Save Price</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- 4. Team Squad Inspection Modal -->
+    <div id="team-squad-modal" tabindex="-1" aria-hidden="true" class="hidden fixed inset-0 z-50 justify-center items-center w-full h-full bg-slate-950/85 backdrop-blur-md p-4 overflow-y-auto">
+        <div class="relative w-full max-w-2xl max-h-[90vh] flex flex-col">
+            <div class="relative bg-slate-900 rounded-3xl shadow-2xl border border-slate-800 flex flex-col overflow-hidden max-h-[85vh]">
+                <!-- Header -->
+                <div class="p-6 border-b border-slate-800/80 bg-slate-950/50 flex items-center justify-between">
+                    <div class="flex items-center gap-3">
+                        <span id="team-squad-logo" class="text-3xl p-2 rounded-2xl bg-slate-800 border border-slate-700">🏏</span>
+                        <div>
+                            <h3 id="team-squad-name" class="text-lg font-black text-white uppercase">Franchise Squad</h3>
+                            <p id="team-squad-meta" class="text-xs text-slate-400">Purse: ₹100L • Spent: ₹0L • Leftover: ₹100L</p>
+                        </div>
+                    </div>
+                    <button type="button" onclick="closeTeamSquadModal()" class="text-slate-400 hover:text-white rounded-xl text-sm w-8 h-8 inline-flex justify-center items-center hover:bg-slate-800 cursor-pointer">
+                        ✕
+                    </button>
+                </div>
+
+                <!-- Squad List -->
+                <div class="p-6 overflow-y-auto flex-1 space-y-4">
+                    <div class="grid grid-cols-3 gap-3 text-center text-xs">
+                        <div class="p-3 rounded-2xl bg-slate-950 border border-slate-800">
+                            <p class="text-slate-500 uppercase font-bold text-[10px]">Total Purse</p>
+                            <p id="team-stat-purse" class="text-base font-black text-white mt-0.5">₹100.0 L</p>
+                        </div>
+                        <div class="p-3 rounded-2xl bg-slate-950 border border-slate-800">
+                            <p class="text-slate-500 uppercase font-bold text-[10px]">Spent</p>
+                            <p id="team-stat-spent" class="text-base font-black text-rose-400 mt-0.5">₹0.0 L</p>
+                        </div>
+                        <div class="p-3 rounded-2xl bg-slate-950 border border-slate-800">
+                            <p class="text-slate-500 uppercase font-bold text-[10px]">Leftover Balance</p>
+                            <p id="team-stat-balance" class="text-base font-black text-emerald-400 mt-0.5">₹100.0 L</p>
+                        </div>
+                    </div>
+
+                    <div class="overflow-x-auto rounded-2xl border border-slate-800 bg-slate-950/40">
+                        <table class="w-full text-left text-xs">
+                            <thead class="bg-slate-950 border-b border-slate-800 text-[10px] text-slate-500 uppercase tracking-wider">
+                                <tr>
+                                    <th class="py-3 px-4">Player</th>
+                                    <th class="py-3 px-3">Role</th>
+                                    <th class="py-3 px-3">Base Price</th>
+                                    <th class="py-3 px-3">Purchase Price</th>
+                                    <th class="py-3 px-4 text-right">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="team-squad-table-body" class="divide-y divide-slate-800/60 font-medium text-slate-300">
+                                <tr>
+                                    <td colspan="5" class="py-8 text-center text-slate-500">No players acquired yet.</td>
+                                </tr>
+                            </tbody>
+                        </table>
                     </div>
                 </div>
             </div>

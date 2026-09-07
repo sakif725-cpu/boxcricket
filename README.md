@@ -93,3 +93,4 @@ Open `index.html` with VS Code **Live Server** (or any static HTTP server):
 - **Salted SHA-256 Hashing**: Passwords encrypted using browser Web Crypto API before leaving the client.
 - **Row Level Security (RLS)**: PostgreSQL tables protected with strict role and operation policies.
 - **Route Guards**: Immediate client-side routing blocks unauthenticated visitors from the admin control center.
+

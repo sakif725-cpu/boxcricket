@@ -484,6 +484,29 @@ document.addEventListener('DOMContentLoaded', () => {
 
         updateCertViewerButton(profile.certificate || profile.certificate_name, profile.certificate_data);
 
+        // Render Auction Base Price and Sold Status
+        const basePrice = profile.base_price !== undefined ? Number(profile.base_price) : 20;
+        setInnerText('dash-player-base-price', `₹${basePrice.toFixed(1)} Lakh`);
+
+        const auctionStatusContainer = document.getElementById('dash-auction-status-container');
+        if (auctionStatusContainer) {
+            const isSold = profile.auction_status === 'Sold' || Boolean(profile.sold_to_team);
+            if (isSold) {
+                const soldPrice = profile.sold_price !== undefined ? Number(profile.sold_price) : basePrice;
+                auctionStatusContainer.innerHTML = `
+                    <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black bg-emerald-400/10 text-emerald-400 border border-emerald-400/30">
+                        <span class="w-2 h-2 rounded-full bg-emerald-400"></span> Sold to ${profile.sold_to_team} (₹${soldPrice.toFixed(1)} Lakh)
+                    </span>
+                `;
+            } else {
+                auctionStatusContainer.innerHTML = `
+                    <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-slate-950 text-slate-400 border border-slate-800">
+                        <span class="w-1.5 h-1.5 rounded-full bg-slate-500"></span> Available for Bidding
+                    </span>
+                `;
+            }
+        }
+
         if (profile.photo_data) {
             const playerPhoto = document.getElementById('dash-player-photo');
             const photoPlaceholder = document.getElementById('dash-photo-placeholder');
@@ -646,6 +669,28 @@ document.addEventListener('DOMContentLoaded', () => {
         e.preventDefault();
         openCertViewerModal(currentAthleteCert.name, currentAthleteCert.data);
     });
+
+    // Realtime Auction Reflection on Player Dashboard
+    if (window.UniBoxDb && window.UniBoxDb.subscribeToAuctionUpdates) {
+        window.UniBoxDb.subscribeToAuctionUpdates(async (event) => {
+            const activeEmail = sessionStorage.getItem('unibox_active_email');
+            const savedSessionRaw = localStorage.getItem('unibox_student_session');
+            let email = activeEmail;
+            if (!email && savedSessionRaw) {
+                try {
+                    const session = JSON.parse(savedSessionRaw);
+                    email = session?.email;
+                } catch (e) {}
+            }
+
+            if (email && window.UniBoxDb) {
+                const { data: freshPlayer } = await window.UniBoxDb.getPlayerByEmail(email);
+                if (freshPlayer) {
+                    applyProfileToUI(freshPlayer);
+                }
+            }
+        });
+    }
 
     // Run auto-restore
     restoreStudentSession();

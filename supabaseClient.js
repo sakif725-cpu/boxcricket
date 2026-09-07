@@ -32,9 +32,35 @@ try {
     console.warn('Supabase initialization error:', err);
 }
 
-// 3. DATABASE HELPER METHODS
+// 3. DEFAULT ROLE BASE PRICES (In Lakhs)
+// Batsman: 20 Lakh, Bowler: 5 Lakh, All-Rounder: 15 Lakh, etc.
+const DEFAULT_ROLE_BASE_PRICES = {
+    'Batter': 20,
+    'Batsman': 20,
+    'Bowler': 5,
+    'All-Rounder': 15,
+    'Wicketkeeper': 10,
+    'Fielder': 5
+};
+
+// 4. DEFAULT TOURNAMENT TEAMS (Purse: 100 Lakhs each)
+const DEFAULT_TEAMS = [
+    { id: 'team-btech', name: 'B.Tech Titans', department: 'B.Tech', logo: '⚡', color: '#38bdf8', total_budget: 100 },
+    { id: 'team-bca', name: 'BCA Blasters', department: 'BCA', logo: '🏏', color: '#a3e635', total_budget: 100 },
+    { id: 'team-bba', name: 'BBA Bulls', department: 'BBA', logo: '🐂', color: '#fbbf24', total_budget: 100 },
+    { id: 'team-mca', name: 'MCA Mavericks', department: 'MCA', logo: '🦅', color: '#34d399', total_budget: 100 },
+    { id: 'team-mba', name: 'MBA Monarchs', department: 'MBA', logo: '👑', color: '#c084fc', total_budget: 100 }
+];
+
+// BroadcastChannel for instant multi-tab zero-latency realtime synchronization
+const auctionChannel = (typeof window !== 'undefined' && typeof window.BroadcastChannel !== 'undefined')
+    ? new BroadcastChannel('unibox_auction_sync')
+    : null;
+
+// 5. DATABASE & AUCTION HELPER METHODS
 const UniBoxDb = {
     isReady: () => isConfigured() && supabaseClient !== null,
+    supabaseClient,
 
     // Cryptographic Password Hashing (Salted SHA-256 via native Web Crypto API)
     hashPassword: async (password) => {
@@ -48,23 +74,371 @@ const UniBoxDb = {
             return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
         } catch (err) {
             console.error('Hashing failed:', err);
-            return password; // Fallback
+            return password;
         }
     },
 
-    // Insert a new player registration
+    // --- AUCTION SETTINGS & ROLE BASE PRICES ---
+    getRoleBasePrices: () => {
+        try {
+            const stored = localStorage.getItem('unibox_role_base_prices');
+            if (stored) return { ...DEFAULT_ROLE_BASE_PRICES, ...JSON.parse(stored) };
+        } catch (e) {}
+        return { ...DEFAULT_ROLE_BASE_PRICES };
+    },
+
+    saveRoleBasePrices: (prices) => {
+        const merged = { ...DEFAULT_ROLE_BASE_PRICES, ...prices };
+        localStorage.setItem('unibox_role_base_prices', JSON.stringify(merged));
+        UniBoxDb.broadcastAuctionEvent({ type: 'ROLE_BASE_PRICES_UPDATED', prices: merged });
+        return merged;
+    },
+
+    getDefaultBasePriceForRole: (role, customPrices = null) => {
+        const prices = customPrices || UniBoxDb.getRoleBasePrices();
+        if (!role) return prices['All-Rounder'] || 15;
+        const normalized = role.trim();
+        if (prices[normalized] !== undefined) return Number(prices[normalized]);
+        if (normalized.toLowerCase().includes('bat')) return Number(prices['Batter'] || 20);
+        if (normalized.toLowerCase().includes('bowl')) return Number(prices['Bowler'] || 5);
+        if (normalized.toLowerCase().includes('round')) return Number(prices['All-Rounder'] || 15);
+        if (normalized.toLowerCase().includes('keeper')) return Number(prices['Wicketkeeper'] || 10);
+        return Number(prices['Fielder'] || 5);
+    },
+
+    // Update individual player's base price
+    updatePlayerBasePrice: async (playerIdOrEmail, basePrice) => {
+        const numPrice = Math.max(0, Number(basePrice) || 0);
+
+        // Update local cache
+        const auctionCache = JSON.parse(localStorage.getItem('unibox_auction_players_cache') || '{}');
+        if (!auctionCache[playerIdOrEmail]) auctionCache[playerIdOrEmail] = {};
+        auctionCache[playerIdOrEmail].base_price = numPrice;
+        localStorage.setItem('unibox_auction_players_cache', JSON.stringify(auctionCache));
+
+        // Update local players list if stored
+        const localPlayers = JSON.parse(localStorage.getItem('unibox_players') || '[]');
+        const idx = localPlayers.findIndex(p => p.id === playerIdOrEmail || p.email === playerIdOrEmail);
+        if (idx >= 0) {
+            localPlayers[idx].base_price = numPrice;
+            localStorage.setItem('unibox_players', JSON.stringify(localPlayers));
+        }
+
+        // Update Supabase if available
+        if (UniBoxDb.isReady()) {
+            try {
+                const query = typeof playerIdOrEmail === 'string' && playerIdOrEmail.includes('@')
+                    ? supabaseClient.from('players').update({ base_price: numPrice }).eq('email', playerIdOrEmail)
+                    : supabaseClient.from('players').update({ base_price: numPrice }).eq('id', playerIdOrEmail);
+                const { error } = await query;
+                if (error && error.code !== '42703') console.warn('Supabase base_price update warning:', error);
+            } catch (err) {
+                console.warn('Supabase base_price update skipped:', err);
+            }
+        }
+
+        UniBoxDb.broadcastAuctionEvent({
+            type: 'PLAYER_BASE_PRICE_UPDATED',
+            playerId: playerIdOrEmail,
+            basePrice: numPrice
+        });
+
+        return { success: true, base_price: numPrice };
+    },
+
+    // --- TEAMS & LIVE BUDGET PURSE MANAGEMENT ---
+    getAllTeams: async () => {
+        let teams = [];
+        try {
+            const storedTeams = localStorage.getItem('unibox_teams');
+            if (storedTeams) {
+                teams = JSON.parse(storedTeams);
+            }
+        } catch (e) {}
+
+        if (!teams || teams.length === 0) {
+            teams = DEFAULT_TEAMS.map(t => ({ ...t }));
+            localStorage.setItem('unibox_teams', JSON.stringify(teams));
+        }
+
+        // Attempt Supabase fetch if available
+        if (UniBoxDb.isReady()) {
+            try {
+                const { data, error } = await supabaseClient.from('teams').select('*').order('name');
+                if (!error && Array.isArray(data) && data.length > 0) {
+                    teams = data.map(t => ({
+                        id: t.id,
+                        name: t.name,
+                        department: t.department,
+                        logo: t.logo || '🏏',
+                        color: t.color || '#a3e635',
+                        total_budget: Number(t.total_budget) || 100
+                    }));
+                    localStorage.setItem('unibox_teams', JSON.stringify(teams));
+                }
+            } catch (err) {}
+        }
+
+        // Fetch all players to calculate spent & leftover balance for each team
+        const { data: players } = await UniBoxDb.getAllPlayers();
+
+        const enrichedTeams = teams.map(team => {
+            const teamSquad = (players || []).filter(p => {
+                const soldTeam = (p.sold_to_team || '').trim().toLowerCase();
+                const soldTeamId = (p.sold_to_team_id || '').trim();
+                return (soldTeam && soldTeam === team.name.toLowerCase()) || (soldTeamId && soldTeamId === team.id);
+            });
+
+            const spent = teamSquad.reduce((sum, p) => sum + (Number(p.sold_price) || 0), 0);
+            const totalBudget = Number(team.total_budget) || 100;
+            const leftover = Math.max(0, totalBudget - spent);
+
+            return {
+                ...team,
+                total_budget: totalBudget,
+                spent: spent,
+                leftover_balance: leftover,
+                squad: teamSquad,
+                squad_count: teamSquad.length
+            };
+        });
+
+        return { data: enrichedTeams, error: null };
+    },
+
+    updateTeamBudget: async (teamId, newBudget) => {
+        const budgetNum = Math.max(0, Number(newBudget) || 100);
+        let teams = JSON.parse(localStorage.getItem('unibox_teams') || '[]');
+        const idx = teams.findIndex(t => t.id === teamId);
+        if (idx >= 0) {
+            teams[idx].total_budget = budgetNum;
+            localStorage.setItem('unibox_teams', JSON.stringify(teams));
+        }
+
+        if (UniBoxDb.isReady()) {
+            try {
+                await supabaseClient.from('teams').update({ total_budget: budgetNum }).eq('id', teamId);
+            } catch (e) {}
+        }
+
+        UniBoxDb.broadcastAuctionEvent({ type: 'TEAM_BUDGET_UPDATED', teamId, totalBudget: budgetNum });
+        return { success: true, total_budget: budgetNum };
+    },
+
+    // --- PURCHASE ATHLETE WITH REALTIME LEFTOVER BALANCE DEDUCTION ---
+    purchasePlayer: async ({ playerIdOrEmail, teamId, soldPrice }) => {
+        const numPrice = Number(soldPrice);
+        if (isNaN(numPrice) || numPrice <= 0) {
+            throw new Error('Please enter a valid purchase price.');
+        }
+
+        // Fetch current teams to check leftover balance
+        const { data: teams } = await UniBoxDb.getAllTeams();
+        const targetTeam = teams.find(t => t.id === teamId || t.name === teamId);
+        if (!targetTeam) {
+            throw new Error('Selected team was not found.');
+        }
+
+        if (numPrice > targetTeam.leftover_balance) {
+            throw new Error(`Insufficient budget! ${targetTeam.name} has only ₹${targetTeam.leftover_balance} Lakh remaining, but purchase price is ₹${numPrice} Lakh.`);
+        }
+
+        // Update local auction cache
+        const auctionCache = JSON.parse(localStorage.getItem('unibox_auction_players_cache') || '{}');
+        if (!auctionCache[playerIdOrEmail]) auctionCache[playerIdOrEmail] = {};
+        auctionCache[playerIdOrEmail].sold_price = numPrice;
+        auctionCache[playerIdOrEmail].sold_to_team = targetTeam.name;
+        auctionCache[playerIdOrEmail].sold_to_team_id = targetTeam.id;
+        auctionCache[playerIdOrEmail].auction_status = 'Sold';
+        localStorage.setItem('unibox_auction_players_cache', JSON.stringify(auctionCache));
+
+        // Also update local unibox_players
+        const localPlayers = JSON.parse(localStorage.getItem('unibox_players') || '[]');
+        const pIdx = localPlayers.findIndex(p => p.id === playerIdOrEmail || p.email === playerIdOrEmail);
+        if (pIdx >= 0) {
+            localPlayers[pIdx].sold_price = numPrice;
+            localPlayers[pIdx].sold_to_team = targetTeam.name;
+            localPlayers[pIdx].sold_to_team_id = targetTeam.id;
+            localPlayers[pIdx].auction_status = 'Sold';
+            localPlayers[pIdx].status = 'Approved';
+            localStorage.setItem('unibox_players', JSON.stringify(localPlayers));
+        }
+
+        // Update in Supabase
+        if (UniBoxDb.isReady()) {
+            try {
+                const query = typeof playerIdOrEmail === 'string' && playerIdOrEmail.includes('@')
+                    ? supabaseClient.from('players').update({
+                        sold_price: numPrice,
+                        sold_to_team: targetTeam.name,
+                        auction_status: 'Sold',
+                        status: 'Approved'
+                    }).eq('email', playerIdOrEmail)
+                    : supabaseClient.from('players').update({
+                        sold_price: numPrice,
+                        sold_to_team: targetTeam.name,
+                        auction_status: 'Sold',
+                        status: 'Approved'
+                    }).eq('id', playerIdOrEmail);
+                await query;
+            } catch (err) {
+                console.warn('Supabase player purchase update skipped (cached locally):', err);
+            }
+        }
+
+        // Instant Realtime Broadcast to all open tabs and windows
+        const updatedBalance = Math.max(0, targetTeam.leftover_balance - numPrice);
+        UniBoxDb.broadcastAuctionEvent({
+            type: 'PLAYER_PURCHASED',
+            playerId: playerIdOrEmail,
+            teamId: targetTeam.id,
+            teamName: targetTeam.name,
+            soldPrice: numPrice,
+            newLeftoverBalance: updatedBalance
+        });
+
+        return {
+            success: true,
+            team: { ...targetTeam, leftover_balance: updatedBalance },
+            player: { id: playerIdOrEmail, sold_to_team: targetTeam.name, sold_price: numPrice, auction_status: 'Sold' }
+        };
+    },
+
+    // --- REVOKE / REFUND ATHLETE PURCHASE ---
+    revokePlayerPurchase: async (playerIdOrEmail) => {
+        // Update local auction cache
+        const auctionCache = JSON.parse(localStorage.getItem('unibox_auction_players_cache') || '{}');
+        let refundedTeam = null;
+        let refundedPrice = 0;
+        if (auctionCache[playerIdOrEmail]) {
+            refundedTeam = auctionCache[playerIdOrEmail].sold_to_team;
+            refundedPrice = Number(auctionCache[playerIdOrEmail].sold_price) || 0;
+            delete auctionCache[playerIdOrEmail].sold_price;
+            delete auctionCache[playerIdOrEmail].sold_to_team;
+            delete auctionCache[playerIdOrEmail].sold_to_team_id;
+            auctionCache[playerIdOrEmail].auction_status = 'Upcoming';
+        }
+        localStorage.setItem('unibox_auction_players_cache', JSON.stringify(auctionCache));
+
+        // Update local unibox_players
+        const localPlayers = JSON.parse(localStorage.getItem('unibox_players') || '[]');
+        const pIdx = localPlayers.findIndex(p => p.id === playerIdOrEmail || p.email === playerIdOrEmail);
+        if (pIdx >= 0) {
+            refundedTeam = refundedTeam || localPlayers[pIdx].sold_to_team;
+            refundedPrice = refundedPrice || (Number(localPlayers[pIdx].sold_price) || 0);
+            delete localPlayers[pIdx].sold_price;
+            delete localPlayers[pIdx].sold_to_team;
+            delete localPlayers[pIdx].sold_to_team_id;
+            localPlayers[pIdx].auction_status = 'Upcoming';
+            localStorage.setItem('unibox_players', JSON.stringify(localPlayers));
+        }
+
+        // Supabase update
+        if (UniBoxDb.isReady()) {
+            try {
+                const query = typeof playerIdOrEmail === 'string' && playerIdOrEmail.includes('@')
+                    ? supabaseClient.from('players').update({
+                        sold_price: null,
+                        sold_to_team: null,
+                        auction_status: 'Upcoming'
+                    }).eq('email', playerIdOrEmail)
+                    : supabaseClient.from('players').update({
+                        sold_price: null,
+                        sold_to_team: null,
+                        auction_status: 'Upcoming'
+                    }).eq('id', playerIdOrEmail);
+                await query;
+            } catch (err) {}
+        }
+
+        // Broadcast refund event
+        UniBoxDb.broadcastAuctionEvent({
+            type: 'PLAYER_PURCHASE_REVOKED',
+            playerId: playerIdOrEmail,
+            refundedTeam,
+            refundedPrice
+        });
+
+        return { success: true, refundedTeam, refundedPrice };
+    },
+
+    // Realtime Event Broadcaster
+    broadcastAuctionEvent: (eventData) => {
+        const payload = { ...eventData, timestamp: Date.now() };
+        if (auctionChannel) {
+            try { auctionChannel.postMessage(payload); } catch (e) {}
+        }
+        if (typeof window !== 'undefined') {
+            window.dispatchEvent(new CustomEvent('unibox_auction_update', { detail: payload }));
+            try {
+                localStorage.setItem('unibox_last_auction_sync', JSON.stringify(payload));
+            } catch (e) {}
+        }
+    },
+
+    // Realtime Subscriber
+    subscribeToAuctionUpdates: (callback) => {
+        if (typeof window === 'undefined') return () => {};
+
+        const handleMessage = (data) => {
+            if (typeof callback === 'function') callback(data);
+        };
+
+        if (auctionChannel) {
+            auctionChannel.onmessage = (e) => handleMessage(e.data);
+        }
+
+        const windowListener = (e) => handleMessage(e.detail);
+        window.addEventListener('unibox_auction_update', windowListener);
+
+        const storageListener = (e) => {
+            if (e.key === 'unibox_last_auction_sync' && e.newValue) {
+                try { handleMessage(JSON.parse(e.newValue)); } catch (err) {}
+            }
+        };
+        window.addEventListener('storage', storageListener);
+
+        // Supabase Realtime channel subscription if available
+        let sbSub = null;
+        if (UniBoxDb.isReady() && supabaseClient) {
+            try {
+                sbSub = supabaseClient
+                    .channel('public:players_realtime')
+                    .on('postgres_changes', { event: '*', schema: 'public', table: 'players' }, (payload) => {
+                        handleMessage({ type: 'SUPABASE_REALTIME', payload });
+                    })
+                    .subscribe();
+            } catch (err) {}
+        }
+
+        return () => {
+            window.removeEventListener('unibox_auction_update', windowListener);
+            window.removeEventListener('storage', storageListener);
+            if (sbSub && supabaseClient) supabaseClient.removeChannel(sbSub);
+        };
+    },
+
+    // --- ATHLETE REGISTRATION & PROFILE METHODS ---
     savePlayer: async (playerData) => {
+        const roleBasePrice = UniBoxDb.getDefaultBasePriceForRole(playerData.player_role);
+        const resolvedBasePrice = playerData.base_price !== undefined ? Number(playerData.base_price) : roleBasePrice;
+
         if (!UniBoxDb.isReady()) {
-            // Local fallback (saves to browser localStorage so data persists across refreshes)
             const localPlayers = JSON.parse(localStorage.getItem('unibox_players') || '[]');
             const existingIdx = localPlayers.findIndex(p => p.email === playerData.email || p.enrollment_no === playerData.enrollment_no);
+            const record = {
+                ...playerData,
+                base_price: resolvedBasePrice,
+                auction_status: 'Upcoming',
+                status: 'Registered'
+            };
             if (existingIdx >= 0) {
-                localPlayers[existingIdx] = { ...localPlayers[existingIdx], ...playerData };
+                localPlayers[existingIdx] = { ...localPlayers[existingIdx], ...record };
             } else {
-                localPlayers.push({ ...playerData, id: 'local_' + Date.now(), created_at: new Date().toISOString(), status: 'Registered' });
+                localPlayers.push({ ...record, id: 'local_' + Date.now(), created_at: new Date().toISOString() });
             }
             localStorage.setItem('unibox_players', JSON.stringify(localPlayers));
-            return { data: playerData, error: null, source: 'localStorage' };
+            return { data: record, error: null, source: 'localStorage' };
         }
 
         try {
@@ -79,6 +453,8 @@ const UniBoxDb = {
                 certificate_data: playerData.certificate_data || null,
                 photo_data: playerData.photo_data || null,
                 password_hash: playerData.password_hash || null,
+                base_price: resolvedBasePrice,
+                auction_status: 'Upcoming',
                 status: 'Registered'
             };
 
@@ -87,15 +463,13 @@ const UniBoxDb = {
                 .upsert([payload], { onConflict: 'email' })
                 .select();
 
-            // Resilient fallback if schema column missing in Supabase (certificate_data or password_hash)
+            // Resilient fallback if schema column missing in Supabase
             if (error && error.code === '42703') {
-                if (error.message?.includes('certificate_data')) {
-                    console.warn("⚠️ 'certificate_data' column missing in Supabase. Run: 'alter table public.players add column if not exists certificate_data text;'");
-                    delete payload.certificate_data;
-                }
-                if (error.message?.includes('password_hash')) {
-                    delete payload.password_hash;
-                }
+                if (error.message?.includes('certificate_data')) delete payload.certificate_data;
+                if (error.message?.includes('password_hash')) delete payload.password_hash;
+                if (error.message?.includes('base_price')) delete payload.base_price;
+                if (error.message?.includes('auction_status')) delete payload.auction_status;
+
                 const retry = await supabaseClient
                     .from('players')
                     .upsert([payload], { onConflict: 'email' })
@@ -112,51 +486,99 @@ const UniBoxDb = {
         }
     },
 
-    // Fetch player profile by email (used on login)
+    // Fetch player profile by email
     getPlayerByEmail: async (email) => {
+        let player = null;
         if (!UniBoxDb.isReady()) {
             const localPlayers = JSON.parse(localStorage.getItem('unibox_players') || '[]');
-            const player = localPlayers.find(p => p.email.toLowerCase() === email.toLowerCase());
-            return { data: player || null, error: null, source: 'localStorage' };
+            player = localPlayers.find(p => p.email.toLowerCase() === email.toLowerCase());
+        } else {
+            try {
+                const { data, error } = await supabaseClient
+                    .from('players')
+                    .select('*')
+                    .eq('email', email)
+                    .maybeSingle();
+                if (error) throw error;
+                player = data;
+            } catch (error) {
+                console.error('Failed to fetch player from Supabase:', error);
+                const localPlayers = JSON.parse(localStorage.getItem('unibox_players') || '[]');
+                player = localPlayers.find(p => p.email.toLowerCase() === email.toLowerCase());
+            }
         }
 
-        try {
-            const { data, error } = await supabaseClient
-                .from('players')
-                .select('*')
-                .eq('email', email)
-                .maybeSingle();
+        if (player) {
+            const auctionCache = JSON.parse(localStorage.getItem('unibox_auction_players_cache') || '{}');
+            const cached = auctionCache[player.id] || auctionCache[player.email] || {};
+            const role = player.player_role || 'All-Rounder';
+            const defaultBase = UniBoxDb.getDefaultBasePriceForRole(role);
 
-            if (error) throw error;
-            return { data, error: null, source: 'supabase' };
-        } catch (error) {
-            console.error('Failed to fetch player from Supabase:', error);
-            return { data: null, error, source: 'supabase' };
+            player = {
+                ...player,
+                base_price: (player.base_price !== undefined && player.base_price !== null)
+                    ? Number(player.base_price) 
+                    : (cached.base_price !== undefined ? Number(cached.base_price) : defaultBase),
+                sold_price: (player.sold_price !== undefined && player.sold_price !== null)
+                    ? Number(player.sold_price) 
+                    : (cached.sold_price !== undefined ? Number(cached.sold_price) : null),
+                sold_to_team: player.sold_to_team || cached.sold_to_team || null,
+                sold_to_team_id: player.sold_to_team_id || cached.sold_to_team_id || null,
+                auction_status: player.auction_status || cached.auction_status || (cached.sold_to_team ? 'Sold' : 'Upcoming')
+            };
         }
+
+        return { data: player, error: null };
     },
 
-    // Fetch all registered players (used by the Admin Panel)
+    // Fetch all registered players
     getAllPlayers: async () => {
+        let players = [];
         if (!UniBoxDb.isReady()) {
-            const localPlayers = JSON.parse(localStorage.getItem('unibox_players') || '[]');
-            return { data: localPlayers, error: null, source: 'localStorage' };
+            players = JSON.parse(localStorage.getItem('unibox_players') || '[]');
+        } else {
+            try {
+                const { data, error } = await supabaseClient
+                    .from('players')
+                    .select('*')
+                    .order('created_at', { ascending: false });
+
+                if (error) throw error;
+                players = Array.isArray(data) ? data : [];
+            } catch (error) {
+                console.error('Failed to fetch all players from Supabase:', error);
+                players = JSON.parse(localStorage.getItem('unibox_players') || '[]');
+            }
         }
 
-        try {
-            const { data, error } = await supabaseClient
-                .from('players')
-                .select('*')
-                .order('created_at', { ascending: false });
+        // Overlay auction cache (base_price, sold_price, sold_to_team, auction_status)
+        const auctionCache = JSON.parse(localStorage.getItem('unibox_auction_players_cache') || '{}');
+        const rolePrices = UniBoxDb.getRoleBasePrices();
 
-            if (error) throw error;
-            return { data: data || [], error: null, source: 'supabase' };
-        } catch (error) {
-            console.error('Failed to fetch all players from Supabase:', error);
-            return { data: [], error, source: 'supabase' };
-        }
+        players = players.map(player => {
+            const id = player.id || player.email;
+            const cached = auctionCache[id] || auctionCache[player.email] || {};
+            const role = player.player_role || 'All-Rounder';
+            const defaultPrice = UniBoxDb.getDefaultBasePriceForRole(role, rolePrices);
+
+            return {
+                ...player,
+                base_price: (player.base_price !== undefined && player.base_price !== null)
+                    ? Number(player.base_price)
+                    : (cached.base_price !== undefined ? Number(cached.base_price) : defaultPrice),
+                sold_price: (player.sold_price !== undefined && player.sold_price !== null)
+                    ? Number(player.sold_price)
+                    : (cached.sold_price !== undefined ? Number(cached.sold_price) : null),
+                sold_to_team: player.sold_to_team || cached.sold_to_team || null,
+                sold_to_team_id: player.sold_to_team_id || cached.sold_to_team_id || null,
+                auction_status: player.auction_status || cached.auction_status || (cached.sold_to_team ? 'Sold' : 'Upcoming')
+            };
+        });
+
+        return { data: players, error: null };
     },
 
-    // Update player accreditation status (used by the Admin Panel)
+    // Update player clearance status
     updatePlayerStatus: async (playerIdOrEmail, newStatus) => {
         if (!UniBoxDb.isReady()) {
             const localPlayers = JSON.parse(localStorage.getItem('unibox_players') || '[]');
@@ -209,8 +631,13 @@ const UniBoxDb = {
         }
     },
 
-    // Delete player registration (used by Admin Panel)
+    // Delete player registration
     deletePlayer: async (playerIdOrEmail) => {
+        // Also remove from auction cache
+        const auctionCache = JSON.parse(localStorage.getItem('unibox_auction_players_cache') || '{}');
+        delete auctionCache[playerIdOrEmail];
+        localStorage.setItem('unibox_auction_players_cache', JSON.stringify(auctionCache));
+
         if (!UniBoxDb.isReady()) {
             let localPlayers = JSON.parse(localStorage.getItem('unibox_players') || '[]');
             localPlayers = localPlayers.filter(p => p.id !== playerIdOrEmail && p.email !== playerIdOrEmail);
@@ -225,9 +652,6 @@ const UniBoxDb = {
 
             const { data, error } = await query;
             if (error) throw error;
-            if (data && data.length === 0) {
-                console.warn("⚠️ Player was not deleted from Supabase. Ensure DELETE policy is created: create policy \"Allow public player delete\" on public.players for delete using (true);");
-            }
             return { success: true, error: null, source: 'supabase' };
         } catch (error) {
             console.error('Failed to delete player from Supabase:', error);
@@ -235,12 +659,11 @@ const UniBoxDb = {
         }
     },
 
-    // Admin Coordinator Authentication (Username/Email + Password)
+    // Admin Coordinator Authentication
     adminLogin: async (identifier, password) => {
         const inputHash = await UniBoxDb.hashPassword(password);
         const trimmed = (identifier || '').trim();
 
-        // Check against Supabase if connected
         if (UniBoxDb.isReady()) {
             try {
                 const isEmail = trimmed.includes('@');
@@ -276,6 +699,8 @@ const UniBoxDb = {
     }
 };
 
-// Export to window for global browser access
-window.UniBoxDb = UniBoxDb;
+// Export to window
+if (typeof window !== 'undefined') {
+    window.UniBoxDb = UniBoxDb;
+}
 
