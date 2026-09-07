@@ -96,13 +96,23 @@ const UniBoxDb = {
 
     getDefaultBasePriceForRole: (role, customPrices = null) => {
         const prices = customPrices || UniBoxDb.getRoleBasePrices();
-        if (!role) return prices['All-Rounder'] || 15;
-        const normalized = role.trim();
-        if (prices[normalized] !== undefined) return Number(prices[normalized]);
-        if (normalized.toLowerCase().includes('bat')) return Number(prices['Batter'] || 20);
-        if (normalized.toLowerCase().includes('bowl')) return Number(prices['Bowler'] || 5);
-        if (normalized.toLowerCase().includes('round')) return Number(prices['All-Rounder'] || 15);
-        if (normalized.toLowerCase().includes('keeper')) return Number(prices['Wicketkeeper'] || 10);
+        if (!role) return Number(prices['All-Rounder'] || 15);
+        const normalized = String(role).trim();
+        
+        // 1. Direct case-insensitive key match
+        for (const [key, val] of Object.entries(prices)) {
+            if (key.toLowerCase() === normalized.toLowerCase()) {
+                return Number(val);
+            }
+        }
+        
+        // 2. Keyword matching
+        const lower = normalized.toLowerCase();
+        if (lower.includes('bat')) return Number(prices['Batter'] || prices['Batsman'] || 20);
+        if (lower.includes('bowl')) return Number(prices['Bowler'] || 5);
+        if (lower.includes('keeper') || lower.includes('wk')) return Number(prices['Wicketkeeper'] || 10);
+        if (lower.includes('field')) return Number(prices['Fielder'] || 5);
+        if (lower.includes('round')) return Number(prices['All-Rounder'] || 15);
         return Number(prices['Fielder'] || 5);
     },
 
@@ -226,7 +236,10 @@ const UniBoxDb = {
     },
 
     // --- PURCHASE ATHLETE WITH REALTIME LEFTOVER BALANCE DEDUCTION ---
-    purchasePlayer: async ({ playerIdOrEmail, teamId, soldPrice }) => {
+    purchasePlayer: async (params) => {
+        const playerIdOrEmail = params.playerIdOrEmail || params.playerId;
+        const teamId = params.teamId;
+        const soldPrice = params.soldPrice;
         const numPrice = Number(soldPrice);
         if (isNaN(numPrice) || numPrice <= 0) {
             throw new Error('Please enter a valid purchase price.');
@@ -456,6 +469,7 @@ const UniBoxDb = {
         localStorage.setItem('unibox_players', JSON.stringify(localPlayers));
 
         if (!UniBoxDb.isReady()) {
+            UniBoxDb.broadcastAuctionEvent({ type: 'PLAYER_REGISTERED', player: record });
             return { data: record, error: null, source: 'localStorage' };
         }
 
@@ -554,9 +568,12 @@ const UniBoxDb = {
                 return { data: record, error: null, source: 'localStorageFallback' };
             }
 
-            return { data: { ...record, ...(data?.[0] || {}) }, error: null, source: 'supabase' };
+            const finalRecord = { ...record, ...(data?.[0] || {}) };
+            UniBoxDb.broadcastAuctionEvent({ type: 'PLAYER_REGISTERED', player: finalRecord });
+            return { data: finalRecord, error: null, source: 'supabase' };
         } catch (error) {
             console.error('Failed to save player to Supabase, used local record fallback:', error);
+            UniBoxDb.broadcastAuctionEvent({ type: 'PLAYER_REGISTERED', player: record });
             return { data: record, error: null, source: 'localStorageFallback' };
         }
     },
@@ -597,9 +614,9 @@ const UniBoxDb = {
                 sold_price: (player.sold_price !== undefined && player.sold_price !== null)
                     ? Number(player.sold_price) 
                     : (cached.sold_price !== undefined ? Number(cached.sold_price) : null),
-                sold_to_team: player.sold_to_team || cached.sold_to_team || null,
-                sold_to_team_id: player.sold_to_team_id || cached.sold_to_team_id || null,
-                auction_status: player.auction_status || cached.auction_status || (cached.sold_to_team ? 'Sold' : 'Upcoming')
+                sold_to_team: cached.sold_to_team || player.sold_to_team || null,
+                sold_to_team_id: cached.sold_to_team_id || player.sold_to_team_id || null,
+                auction_status: (cached.sold_to_team || player.sold_to_team) ? 'Sold' : (cached.auction_status || player.auction_status || 'Upcoming')
             };
         }
 
@@ -644,9 +661,9 @@ const UniBoxDb = {
                 sold_price: (player.sold_price !== undefined && player.sold_price !== null)
                     ? Number(player.sold_price)
                     : (cached.sold_price !== undefined ? Number(cached.sold_price) : null),
-                sold_to_team: player.sold_to_team || cached.sold_to_team || null,
-                sold_to_team_id: player.sold_to_team_id || cached.sold_to_team_id || null,
-                auction_status: player.auction_status || cached.auction_status || (cached.sold_to_team ? 'Sold' : 'Upcoming')
+                sold_to_team: cached.sold_to_team || player.sold_to_team || null,
+                sold_to_team_id: cached.sold_to_team_id || player.sold_to_team_id || null,
+                auction_status: (cached.sold_to_team || player.sold_to_team) ? 'Sold' : (cached.auction_status || player.auction_status || 'Upcoming')
             };
         });
 

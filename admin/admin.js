@@ -283,8 +283,8 @@ function renderRosterTable() {
         const department = player.department || '---';
         const role = player.player_role || 'All-Rounder';
         const status = player.status || 'Registered';
-        const photo = player.photo_data || null;
-        const basePrice = player.base_price !== undefined ? Number(player.base_price) : 15;
+        const defaultRolePrice = window.UniBoxDb ? window.UniBoxDb.getDefaultBasePriceForRole(role) : 15;
+        const basePrice = (player.base_price !== undefined && player.base_price !== null) ? Number(player.base_price) : defaultRolePrice;
         const isSold = player.auction_status === 'Sold' || Boolean(player.sold_to_team);
         const soldTeam = player.sold_to_team || '';
         const soldPrice = player.sold_price !== undefined && player.sold_price !== null ? Number(player.sold_price) : null;
@@ -539,7 +539,8 @@ function openAthleteModal(playerId) {
     modalRole.textContent = player.player_role || '---';
     modalCert.textContent = player.certificate_name || player.certificate || 'None attached';
 
-    const basePrice = player.base_price !== undefined ? Number(player.base_price) : 15;
+    const defaultRolePrice = window.UniBoxDb ? window.UniBoxDb.getDefaultBasePriceForRole(player.player_role) : 15;
+    const basePrice = (player.base_price !== undefined && player.base_price !== null) ? Number(player.base_price) : defaultRolePrice;
     modalBasePrice.textContent = `₹${basePrice.toFixed(1)} Lakh`;
 
     const editPriceBtn = document.getElementById('modal-edit-price-btn');
@@ -707,8 +708,8 @@ function openEditBasePriceModal(playerId) {
     const nameEl = document.getElementById('edit-base-player-name');
     const inputEl = document.getElementById('edit-base-price-input');
 
-    if (nameEl) nameEl.textContent = `${player.full_name || player.name} (${player.player_role || 'Athlete'})`;
-    if (inputEl) inputEl.value = player.base_price !== undefined ? Number(player.base_price) : 20;
+    const defaultRoleBase = window.UniBoxDb ? window.UniBoxDb.getDefaultBasePriceForRole(player.player_role) : 15;
+    if (inputEl) inputEl.value = (player.base_price !== undefined && player.base_price !== null) ? Number(player.base_price) : defaultRoleBase;
 
     modal.classList.remove('hidden');
     modal.classList.add('flex');

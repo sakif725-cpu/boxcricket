@@ -156,12 +156,12 @@ document.addEventListener('DOMContentLoaded', () => {
         // 5. Update clearance status badge based on admin's decision (Approved / Rejected / Pending)
         updateDashboardClearanceBadge(user?.status || 'Registered');
 
-        // Re-fetch latest clearance decision live from database
+        // Re-fetch latest clearance and auction decision live from database
         const userEmail = user?.email || sessionStorage.getItem('unibox_active_email');
         if (userEmail && window.UniBoxDb) {
             window.UniBoxDb.getPlayerByEmail(userEmail).then(({ data: freshPlayer }) => {
-                if (freshPlayer && freshPlayer.status) {
-                    updateDashboardClearanceBadge(freshPlayer.status);
+                if (freshPlayer) {
+                    applyProfileToUI(freshPlayer);
                 }
             });
         }
@@ -254,42 +254,16 @@ document.addEventListener('DOMContentLoaded', () => {
                     certificate_name: dbPlayer.certificate_name || dbPlayer.certificate || 'None attached',
                     certificate_data: dbPlayer.certificate_data || null,
                     photo_data: dbPlayer.photo_data || null,
-                    status: dbPlayer.status || 'Registered'
+                    status: dbPlayer.status || 'Registered',
+                    base_price: dbPlayer.base_price,
+                    sold_price: dbPlayer.sold_price,
+                    sold_to_team: dbPlayer.sold_to_team,
+                    sold_to_team_id: dbPlayer.sold_to_team_id,
+                    auction_status: dbPlayer.auction_status
                 };
 
-                // Populate credentials table
-                const setInnerText = (id, val) => {
-                    const el = document.getElementById(id);
-                    if (el && val) el.innerText = val;
-                };
-                setInnerText('dash-player-name', userProfile.name);
-                setInnerText('dash-player-email', userProfile.email);
-                setInnerText('dash-player-roll', userProfile.enrollment_no);
-                setInnerText('dash-player-dept', userProfile.department);
-                setInnerText('dash-player-gender', userProfile.gender);
-                setInnerText('dash-player-role', userProfile.player_role);
-                setInnerText('dash-player-cert', userProfile.certificate);
-
-                // Update certificate viewer state
-                updateCertViewerButton(userProfile.certificate, userProfile.certificate_data);
-
-                // Restore photo if saved in database
-                if (userProfile.photo_data) {
-                    const playerPhoto = document.getElementById('dash-player-photo');
-                    const photoPlaceholder = document.getElementById('dash-photo-placeholder');
-                    const photoStatusBadge = document.getElementById('photo-status-badge');
-                    const photoBtnText = document.getElementById('photo-btn-text');
-                    if (playerPhoto) {
-                        playerPhoto.src = userProfile.photo_data;
-                        playerPhoto.classList.remove('hidden');
-                    }
-                    if (photoPlaceholder) photoPlaceholder.classList.add('hidden');
-                    if (photoStatusBadge) {
-                        photoStatusBadge.classList.remove('hidden');
-                        photoStatusBadge.classList.add('flex');
-                    }
-                    if (photoBtnText) photoBtnText.textContent = 'Change Photo';
-                }
+                // Populate credentials table & auction status
+                applyProfileToUI(userProfile);
             }
 
             sessionStorage.setItem('unibox_active_email', email);
@@ -354,6 +328,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 pendingCertName = certFile.name;
             }
 
+            const selectedRole = signupForm.querySelector('input[name="player_role"]:checked')?.value || document.getElementById('signup-role')?.value || 'All-Rounder';
+            const defaultBase = window.UniBoxDb ? window.UniBoxDb.getDefaultBasePriceForRole(selectedRole) : 15;
             const certDisplayStr = pendingCertName ? `📎 ${pendingCertName}` : 'None attached';
             const playerData = {
                 name: document.getElementById('signup-name')?.value?.trim() || '',
@@ -361,7 +337,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 department: deptText,
                 email: document.getElementById('signup-email')?.value?.trim() || '',
                 gender: signupForm.querySelector('input[name="gender"]:checked')?.value || document.getElementById('signup-gender')?.value || 'Not specified',
-                player_role: signupForm.querySelector('input[name="player_role"]:checked')?.value || document.getElementById('signup-role')?.value || 'Not selected',
+                player_role: selectedRole,
+                base_price: defaultBase,
+                auction_status: 'Upcoming',
                 certificate: certDisplayStr,
                 certificate_name: certDisplayStr,
                 certificate_data: pendingCertData,
@@ -371,6 +349,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // 2. Persist to Database (Supabase / local fallback)
             sessionStorage.setItem('unibox_active_email', playerData.email);
+            let finalProfile = playerData;
             if (window.UniBoxDb) {
                 const dbResult = await window.UniBoxDb.savePlayer(playerData);
                 if (dbResult.error) {
@@ -382,30 +361,17 @@ document.addEventListener('DOMContentLoaded', () => {
                         return;
                     }
                 }
+                if (dbResult.data) {
+                    finalProfile = { ...playerData, ...dbResult.data };
+                }
                 console.log('Player registration persisted:', dbResult);
             }
 
-            // 3. Inject form values directly into dashboard identity card text placeholders
-            const setInnerText = (id, val) => {
-                const el = document.getElementById(id);
-                if (el && val) el.innerText = val;
-            };
-
-            setInnerText('dash-player-name', playerData.name);
-            setInnerText('dash-player-name-full', playerData.name);
-            setInnerText('dash-player-roll', playerData.enrollment_no);
-            setInnerText('dash-player-roll-detail', playerData.enrollment_no);
-            setInnerText('dash-player-dept', playerData.department);
-            setInnerText('dash-player-dept-detail', playerData.department);
-            setInnerText('dash-player-role', playerData.player_role);
-            setInnerText('dash-player-role-detail', playerData.player_role);
-            setInnerText('dash-player-email', playerData.email);
-            setInnerText('dash-player-gender', playerData.gender);
-            setInnerText('dash-player-gender-detail', playerData.gender);
-            setInnerText('dash-player-cert', playerData.certificate);
+            // 3. Populate all profile and auction fields on the dashboard
+            applyProfileToUI(finalProfile);
 
             // 4. Switch to dashboard view & hide header login button
-            enterDashboard(playerData);
+            enterDashboard(finalProfile);
             updateCertViewerButton(playerData.certificate, playerData.certificate_data);
 
             console.log('Successfully initialized arena profile node.', playerData);
@@ -485,7 +451,11 @@ document.addEventListener('DOMContentLoaded', () => {
         updateCertViewerButton(profile.certificate || profile.certificate_name, profile.certificate_data);
 
         // Render Auction Base Price and Sold Status
-        const basePrice = profile.base_price !== undefined ? Number(profile.base_price) : 20;
+        const role = profile.player_role || 'All-Rounder';
+        const defaultRoleBasePrice = window.UniBoxDb ? window.UniBoxDb.getDefaultBasePriceForRole(role) : 15;
+        const basePrice = (profile.base_price !== undefined && profile.base_price !== null && profile.base_price !== '') 
+            ? Number(profile.base_price) 
+            : defaultRoleBasePrice;
         setInnerText('dash-player-base-price', `₹${basePrice.toFixed(1)} Lakh`);
 
         const auctionStatusContainer = document.getElementById('dash-auction-status-container');
@@ -565,7 +535,12 @@ document.addEventListener('DOMContentLoaded', () => {
                         certificate_name: dbPlayer.certificate_name || dbPlayer.certificate || 'None attached',
                         certificate_data: dbPlayer.certificate_data || localStorage.getItem(`unibox_cert_${email}`) || null,
                         photo_data: dbPlayer.photo_data || null,
-                        status: dbPlayer.status || 'Registered'
+                        status: dbPlayer.status || 'Registered',
+                        base_price: dbPlayer.base_price,
+                        sold_price: dbPlayer.sold_price,
+                        sold_to_team: dbPlayer.sold_to_team,
+                        sold_to_team_id: dbPlayer.sold_to_team_id,
+                        auction_status: dbPlayer.auction_status
                     };
 
                     applyProfileToUI(userProfile);
