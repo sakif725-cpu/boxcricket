@@ -288,6 +288,7 @@ function renderRosterTable() {
         const enrollment = player.enrollment_no || '---';
         const department = player.department || '---';
         const role = player.player_role || 'All-Rounder';
+        const photo = player.photo_data || player.photo || '';
         const status = player.status || 'Registered';
         const defaultRolePrice = window.UniBoxDb ? window.UniBoxDb.getDefaultBasePriceForRole(role) : 15;
         const basePrice = (player.base_price !== undefined && player.base_price !== null) ? Number(player.base_price) : defaultRolePrice;
