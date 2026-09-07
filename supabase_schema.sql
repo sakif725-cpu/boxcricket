@@ -138,5 +138,8 @@ on conflict (id) do update set
     logo = excluded.logo,
     color = excluded.color;
 
-
-
+-- ==============================================================================
+-- 8. RELOAD SUPABASE POSTGREST SCHEMA CACHE
+-- ==============================================================================
+-- Forces Supabase PostgREST to immediately discover newly added columns & tables
+notify pgrst, 'reload schema';

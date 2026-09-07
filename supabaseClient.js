@@ -267,20 +267,18 @@ const UniBoxDb = {
         // Update in Supabase
         if (UniBoxDb.isReady()) {
             try {
-                const query = typeof playerIdOrEmail === 'string' && playerIdOrEmail.includes('@')
-                    ? supabaseClient.from('players').update({
-                        sold_price: numPrice,
-                        sold_to_team: targetTeam.name,
-                        auction_status: 'Sold',
-                        status: 'Approved'
-                    }).eq('email', playerIdOrEmail)
-                    : supabaseClient.from('players').update({
-                        sold_price: numPrice,
-                        sold_to_team: targetTeam.name,
-                        auction_status: 'Sold',
-                        status: 'Approved'
-                    }).eq('id', playerIdOrEmail);
-                await query;
+                const targetField = typeof playerIdOrEmail === 'string' && playerIdOrEmail.includes('@') ? 'email' : 'id';
+                const { error: updateErr } = await supabaseClient.from('players').update({
+                    sold_price: numPrice,
+                    sold_to_team: targetTeam.name,
+                    auction_status: 'Sold',
+                    status: 'Approved'
+                }).eq(targetField, playerIdOrEmail);
+
+                if (updateErr) {
+                    // Fallback to update status if auction columns are not yet added in Supabase
+                    await supabaseClient.from('players').update({ status: 'Approved' }).eq(targetField, playerIdOrEmail);
+                }
             } catch (err) {
                 console.warn('Supabase player purchase update skipped (cached locally):', err);
             }
@@ -423,21 +421,41 @@ const UniBoxDb = {
         const roleBasePrice = UniBoxDb.getDefaultBasePriceForRole(playerData.player_role);
         const resolvedBasePrice = playerData.base_price !== undefined ? Number(playerData.base_price) : roleBasePrice;
 
-        if (!UniBoxDb.isReady()) {
-            const localPlayers = JSON.parse(localStorage.getItem('unibox_players') || '[]');
-            const existingIdx = localPlayers.findIndex(p => p.email === playerData.email || p.enrollment_no === playerData.enrollment_no);
-            const record = {
-                ...playerData,
+        // 1. Immediately cache auction metadata (base_price, auction_status) locally
+        try {
+            const auctionCache = JSON.parse(localStorage.getItem('unibox_auction_players_cache') || '{}');
+            const cacheEntry = {
                 base_price: resolvedBasePrice,
-                auction_status: 'Upcoming',
-                status: 'Registered'
+                auction_status: playerData.auction_status || 'Upcoming'
             };
-            if (existingIdx >= 0) {
-                localPlayers[existingIdx] = { ...localPlayers[existingIdx], ...record };
-            } else {
-                localPlayers.push({ ...record, id: 'local_' + Date.now(), created_at: new Date().toISOString() });
+            if (playerData.email) {
+                auctionCache[playerData.email] = { ...(auctionCache[playerData.email] || {}), ...cacheEntry };
             }
-            localStorage.setItem('unibox_players', JSON.stringify(localPlayers));
+            if (playerData.enrollment_no) {
+                auctionCache[playerData.enrollment_no] = { ...(auctionCache[playerData.enrollment_no] || {}), ...cacheEntry };
+            }
+            localStorage.setItem('unibox_auction_players_cache', JSON.stringify(auctionCache));
+        } catch (e) {
+            console.warn('Failed to cache auction metadata locally:', e);
+        }
+
+        // 2. Prepare comprehensive local player record
+        const localPlayers = JSON.parse(localStorage.getItem('unibox_players') || '[]');
+        const existingIdx = localPlayers.findIndex(p => p.email === playerData.email || p.enrollment_no === playerData.enrollment_no);
+        const record = {
+            ...playerData,
+            base_price: resolvedBasePrice,
+            auction_status: playerData.auction_status || 'Upcoming',
+            status: playerData.status || 'Registered'
+        };
+        if (existingIdx >= 0) {
+            localPlayers[existingIdx] = { ...localPlayers[existingIdx], ...record };
+        } else {
+            localPlayers.push({ ...record, id: 'local_' + Date.now(), created_at: new Date().toISOString() });
+        }
+        localStorage.setItem('unibox_players', JSON.stringify(localPlayers));
+
+        if (!UniBoxDb.isReady()) {
             return { data: record, error: null, source: 'localStorage' };
         }
 
@@ -458,31 +476,88 @@ const UniBoxDb = {
                 status: 'Registered'
             };
 
-            let { data, error } = await supabaseClient
-                .from('players')
-                .upsert([payload], { onConflict: 'email' })
-                .select();
+            let data = null;
+            let error = null;
+            let attempts = 0;
+            const maxAttempts = 6;
 
-            // Resilient fallback if schema column missing in Supabase
-            if (error && error.code === '42703') {
-                if (error.message?.includes('certificate_data')) delete payload.certificate_data;
-                if (error.message?.includes('password_hash')) delete payload.password_hash;
-                if (error.message?.includes('base_price')) delete payload.base_price;
-                if (error.message?.includes('auction_status')) delete payload.auction_status;
-
-                const retry = await supabaseClient
+            while (attempts < maxAttempts) {
+                attempts++;
+                const res = await supabaseClient
                     .from('players')
                     .upsert([payload], { onConflict: 'email' })
                     .select();
-                data = retry.data;
-                error = retry.error;
+                data = res.data;
+                error = res.error;
+
+                if (!error) {
+                    break; // Successfully inserted/updated
+                }
+
+                // If duplicate registration (unique constraint violation), stop and return error
+                if (error.code === '23505' || error.message?.includes('duplicate key') || error.message?.includes('violates unique constraint')) {
+                    return { data: null, error, source: 'supabase' };
+                }
+
+                // Check for missing column / schema cache errors
+                const msg = (error.message || '').toLowerCase();
+                const isSchemaError = error.code === '42703' ||
+                    error.code === 'PGRST204' ||
+                    error.code === 'PGRST100' ||
+                    msg.includes('schema cache') ||
+                    msg.includes('could not find the') ||
+                    msg.includes('column') ||
+                    msg.includes('does not exist');
+
+                if (isSchemaError) {
+                    // Extract offending column name from error message if possible
+                    const match = error.message?.match(/Could not find the '([^']+)' column/i) ||
+                                  error.message?.match(/column ["']?([^"'\s]+)["']? does not exist/i);
+                    if (match && match[1] && payload.hasOwnProperty(match[1])) {
+                        delete payload[match[1]];
+                        continue;
+                    }
+
+                    // Fallback to removing optional columns in order of likelihood
+                    if (payload.auction_status !== undefined) {
+                        delete payload.auction_status;
+                        continue;
+                    }
+                    if (payload.base_price !== undefined) {
+                        delete payload.base_price;
+                        continue;
+                    }
+                    if (payload.certificate_data !== undefined) {
+                        delete payload.certificate_data;
+                        continue;
+                    }
+                    if (payload.password_hash !== undefined) {
+                        delete payload.password_hash;
+                        continue;
+                    }
+                    if (payload.photo_data !== undefined) {
+                        delete payload.photo_data;
+                        continue;
+                    }
+                }
+
+                // Unrecognized error that cannot be resolved by stripping columns
+                break;
             }
 
-            if (error) throw error;
-            return { data: data?.[0] || payload, error: null, source: 'supabase' };
+            if (error) {
+                console.warn('Supabase upsert failed, continuing with local storage fallback:', error);
+                // Unique constraint error should still be reported
+                if (error.code === '23505' || error.message?.includes('duplicate key')) {
+                    return { data: null, error, source: 'supabase' };
+                }
+                return { data: record, error: null, source: 'localStorageFallback' };
+            }
+
+            return { data: { ...record, ...(data?.[0] || {}) }, error: null, source: 'supabase' };
         } catch (error) {
-            console.error('Failed to save player to Supabase:', error);
-            return { data: null, error, source: 'supabase' };
+            console.error('Failed to save player to Supabase, used local record fallback:', error);
+            return { data: record, error: null, source: 'localStorageFallback' };
         }
     },
 
