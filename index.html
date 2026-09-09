@@ -83,9 +83,15 @@
         <!-- Dashboard Top Header Bar -->
         <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between border-b border-slate-800/80 pb-6 mb-8 gap-4">
             <div class="space-y-1">
-                <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold bg-lime-400/10 text-lime-400 border border-lime-400/20 mb-1">
-                    <span class="w-2 h-2 rounded-full bg-lime-400 animate-ping"></span>
-                    <span>Registration Confirmed</span>
+                <div class="flex items-center gap-2 flex-wrap mb-1">
+                    <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold bg-lime-400/10 text-lime-400 border border-lime-400/20">
+                        <span class="w-2 h-2 rounded-full bg-lime-400 animate-ping"></span>
+                        <span>Registration Confirmed</span>
+                    </div>
+                    <div id="dash-session-badge" class="hidden inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                        <span id="dash-session-badge-icon">⏳</span>
+                        <span id="dash-session-badge-text">Temporary Session</span>
+                    </div>
                 </div>
                 <h2 class="text-3xl sm:text-4xl font-black tracking-tight text-white uppercase flex items-center gap-3">
                     Player Arena <span class="bg-gradient-to-r from-lime-400 via-emerald-400 to-teal-400 bg-clip-text text-transparent">HQ</span>
@@ -318,9 +324,9 @@
                                 required>
                         </div>
                         <div class="flex items-center justify-between text-sm pt-1">
-                            <label class="flex items-center text-slate-400 cursor-pointer select-none">
-                                <input type="checkbox"
-                                    class="w-4 h-4 rounded bg-slate-950 border-slate-800 text-lime-400 focus:ring-lime-400 focus:ring-offset-slate-900">
+                            <label class="flex items-center text-slate-400 hover:text-slate-200 cursor-pointer select-none transition-colors" title="Check to stay signed in on this device. If unticked, session will expire shortly.">
+                                <input type="checkbox" id="login-stay-signed-in" name="stay_signed_in"
+                                    class="w-4 h-4 rounded bg-slate-950 border-slate-800 text-lime-400 focus:ring-lime-400 focus:ring-offset-slate-900 cursor-pointer">
                                 <span class="ms-2.5 text-xs text-slate-400">Stay signed in</span>
                             </label>
                             <a href="#" class="text-xs text-lime-400 font-semibold hover:underline">Reset Password?</a>
@@ -550,6 +556,12 @@
                 </div>
             </div>
         </div>
+    </div>
+
+    <!-- Session Expiry Toast Notification -->
+    <div id="session-toast" class="fixed bottom-6 right-6 z-50 transform translate-y-20 opacity-0 transition-all duration-300 flex items-center gap-3 px-5 py-3.5 rounded-2xl shadow-2xl bg-slate-900 border border-amber-400 text-amber-400 text-xs font-bold pointer-events-none">
+        <span id="session-toast-icon">⏳</span>
+        <span id="session-toast-text">Session notification</span>
     </div>
 
     <!-- Supabase Client Library & Database Connector -->

@@ -116,21 +116,127 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
+    // =========================================================================
+    // ATHLETE SESSION & EXPIRATION CONFIGURATION
+    // =========================================================================
+    // Default short session timeout: 15 minutes (configurable via window.UniBoxConfig)
+    const DEFAULT_SHORT_SESSION_DURATION = 15 * 60 * 1000;
+    function getShortSessionDuration() {
+        return (window.UniBoxConfig && typeof window.UniBoxConfig.SHORT_SESSION_DURATION === 'number')
+            ? window.UniBoxConfig.SHORT_SESSION_DURATION
+            : DEFAULT_SHORT_SESSION_DURATION;
+    }
+
+    let sessionExpiryTimer = null;
+    let toastTimeout = null;
+
+    function showSessionToast(msg, type = 'info') {
+        const toast = document.getElementById('session-toast');
+        const text = document.getElementById('session-toast-text');
+        const icon = document.getElementById('session-toast-icon');
+        if (!toast || !text) return;
+
+        if (toastTimeout) clearTimeout(toastTimeout);
+
+        text.textContent = msg;
+        if (type === 'warning' || type === 'error') {
+            toast.className = 'fixed bottom-6 right-6 z-50 transform translate-y-0 opacity-100 transition-all duration-300 flex items-center gap-3 px-5 py-3.5 rounded-2xl shadow-2xl bg-slate-900 border border-amber-400 text-amber-400 text-xs font-bold pointer-events-auto';
+            if (icon) icon.textContent = '⏳';
+        } else {
+            toast.className = 'fixed bottom-6 right-6 z-50 transform translate-y-0 opacity-100 transition-all duration-300 flex items-center gap-3 px-5 py-3.5 rounded-2xl shadow-2xl bg-slate-900 border border-lime-400 text-lime-400 text-xs font-bold pointer-events-auto';
+            if (icon) icon.textContent = '✓';
+        }
+
+        toastTimeout = setTimeout(() => {
+            toast.classList.add('translate-y-20', 'opacity-0');
+            toast.classList.remove('pointer-events-auto');
+            toast.classList.add('pointer-events-none');
+        }, 5000);
+    }
+
+    function updateSessionBadge(staySignedIn, expiresAt) {
+        const badge = document.getElementById('dash-session-badge');
+        const icon = document.getElementById('dash-session-badge-icon');
+        const text = document.getElementById('dash-session-badge-text');
+        if (!badge || !text) return;
+
+        if (staySignedIn) {
+            badge.className = 'inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20';
+            if (icon) icon.textContent = '🔒';
+            text.textContent = 'Stay Signed In: Active';
+            badge.classList.remove('hidden');
+        } else if (expiresAt) {
+            badge.className = 'inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold bg-amber-500/10 text-amber-400 border border-amber-500/20';
+            if (icon) icon.textContent = '⏳';
+            const remainingMs = Math.max(0, expiresAt - Date.now());
+            const mins = Math.max(1, Math.round(remainingMs / 60000));
+            text.textContent = `Temporary Session (~${mins}m left)`;
+            badge.classList.remove('hidden');
+        } else {
+            badge.classList.add('hidden');
+        }
+    }
+
+    function handleSessionExpired(reason = 'Your temporary session has expired. Check "Stay signed in" to keep your session active.') {
+        exitDashboard();
+        showSessionToast(reason, 'warning');
+        openModal('auth-modal');
+        switchAuthTab('login');
+        const errorBox = document.getElementById('login-error-box');
+        const errorText = document.getElementById('login-error-text');
+        if (errorBox && errorText) {
+            errorText.textContent = reason;
+            errorBox.classList.remove('hidden');
+        }
+    }
+
     // Enter Dashboard & Show Top Navigation Logout Button
-    function enterDashboard(user) {
+    function enterDashboard(user, staySignedIn = true, existingExpiresAt = null) {
         // Add logged-in class to html root to guarantee zero visual flash
         document.documentElement.classList.add('is-athlete-logged-in');
 
-        // 1. Persist student session and profile to localStorage
+        // Clear any previous expiry timer
+        if (sessionExpiryTimer) {
+            clearTimeout(sessionExpiryTimer);
+            sessionExpiryTimer = null;
+        }
+
+        const isStaySignedIn = Boolean(staySignedIn);
+        let expiresAt = null;
+
+        if (!isStaySignedIn) {
+            expiresAt = existingExpiresAt || (Date.now() + getShortSessionDuration());
+        }
+
+        // 1. Persist student session and profile
         if (user && user.email) {
-            localStorage.setItem('unibox_student_session', JSON.stringify({
+            const sessionData = {
                 email: user.email,
                 name: user.name || '',
-                timestamp: Date.now()
-            }));
+                staySignedIn: isStaySignedIn,
+                loginTimestamp: Date.now(),
+                expiresAt: expiresAt
+            };
+            localStorage.setItem('unibox_student_session', JSON.stringify(sessionData));
             localStorage.setItem('unibox_cached_profile', JSON.stringify(user));
             sessionStorage.setItem('unibox_active_email', user.email);
+            sessionStorage.setItem('unibox_session_active', '1');
         }
+
+        // Setup timer if temporary session
+        if (!isStaySignedIn && expiresAt) {
+            const remaining = Math.max(0, expiresAt - Date.now());
+            if (remaining === 0) {
+                handleSessionExpired();
+                return;
+            }
+            sessionExpiryTimer = setTimeout(() => {
+                handleSessionExpired('Your temporary session has expired. Check "Stay signed in" to keep your session active.');
+            }, remaining);
+        }
+
+        // Update session badge indicator on player dashboard
+        updateSessionBadge(isStaySignedIn, expiresAt);
 
         // 2. Hide navbar Login button & show navbar Logout button
         const navLoginBtn = document.getElementById('nav-login-btn');
@@ -186,11 +292,21 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Exit Dashboard & Restore Top Navigation Login Button
     function exitDashboard() {
+        if (sessionExpiryTimer) {
+            clearTimeout(sessionExpiryTimer);
+            sessionExpiryTimer = null;
+        }
+
         // Clear saved athlete session so page returns to default
         document.documentElement.classList.remove('is-athlete-logged-in');
         localStorage.removeItem('unibox_student_session');
         localStorage.removeItem('unibox_cached_profile');
         sessionStorage.removeItem('unibox_active_email');
+        sessionStorage.removeItem('unibox_session_active');
+
+        // Hide session badge
+        const badge = document.getElementById('dash-session-badge');
+        if (badge) badge.classList.add('hidden');
 
         // 1. Restore landing hero layouts and hide dashboard
         document.querySelector('main')?.classList.remove('hidden');
@@ -211,6 +327,8 @@ document.addEventListener('DOMContentLoaded', () => {
             e.preventDefault();
             const email = document.getElementById('login-email')?.value?.trim() || '';
             const password = document.getElementById('login-password')?.value || '';
+            const staySignedInCheckbox = document.getElementById('login-stay-signed-in');
+            const staySignedIn = Boolean(staySignedInCheckbox?.checked);
             const errorBox = document.getElementById('login-error-box');
             const errorText = document.getElementById('login-error-text');
 
@@ -267,8 +385,9 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             sessionStorage.setItem('unibox_active_email', email);
-            enterDashboard(userProfile);
+            enterDashboard(userProfile, staySignedIn);
             loginForm.reset();
+            if (staySignedInCheckbox) staySignedInCheckbox.checked = false;
         });
     }
 
@@ -505,7 +624,27 @@ document.addEventListener('DOMContentLoaded', () => {
             const session = JSON.parse(savedSessionRaw);
             if (!session || !session.email) return;
 
+            // Enforce temporary session checks if "Stay signed in" was NOT checked
+            if (session.staySignedIn === false) {
+                // Check 1: Was the browser / tab closed?
+                const isTabActive = sessionStorage.getItem('unibox_session_active') === '1';
+                if (!isTabActive) {
+                    console.log('Temporary session ended: browser tab was closed.');
+                    exitDashboard();
+                    return;
+                }
+
+                // Check 2: Has the short session expired?
+                if (session.expiresAt && Date.now() > session.expiresAt) {
+                    console.log('Temporary session expired after timeout.');
+                    handleSessionExpired('Your temporary session has expired. Check "Stay signed in" to keep your session active.');
+                    return;
+                }
+            }
+
             const email = session.email;
+            const isStaySignedIn = session.staySignedIn !== false;
+            const expiresAt = session.expiresAt || null;
 
             // Phase 1: Immediately render cached profile (0ms, zero lag!)
             const cachedProfileRaw = localStorage.getItem('unibox_cached_profile');
@@ -514,7 +653,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     const cached = JSON.parse(cachedProfileRaw);
                     if (cached && cached.email === email) {
                         applyProfileToUI(cached);
-                        enterDashboard(cached);
+                        enterDashboard(cached, isStaySignedIn, expiresAt);
                     }
                 } catch (e) {}
             }
@@ -544,7 +683,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     };
 
                     applyProfileToUI(userProfile);
-                    enterDashboard(userProfile);
+                    enterDashboard(userProfile, isStaySignedIn, expiresAt);
                 }
             }
         } catch (err) {
