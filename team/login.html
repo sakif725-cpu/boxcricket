@@ -290,8 +290,8 @@
                     const { data: teams } = await window.UniBoxDb.getAllTeams();
                     if (!claimSelect) return;
                     claimSelect.innerHTML = (teams || []).map(t => {
-                        const isClaimed = Boolean(t.owner_email || t.owner_name);
-                        const label = `${t.logo || '🏏'} ${t.name} (${t.department}) ${isClaimed ? `— [Claimed: ${t.owner_name || 'Assigned'}]` : '— [Available]'}`;
+                        const isClaimed = Boolean(t.owner_email);
+                        const label = `${t.logo || '🏏'} ${t.name} (${t.department}) ${isClaimed ? '— [Already Claimed]' : '— [Available]'}`;
                         return `<option value="${t.id}" ${isClaimed ? 'disabled class="text-slate-600 bg-slate-950"' : 'class="text-white bg-slate-900"'}>${label}</option>`;
                     }).join('');
                 } catch (e) {
@@ -423,3 +423,4 @@
 </body>
 
 </html>
+

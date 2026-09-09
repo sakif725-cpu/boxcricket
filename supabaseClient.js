@@ -181,7 +181,6 @@ const UniBoxDb = {
                     const session = UniBoxDb.getTeamOwnerSession();
 
                     teams = data.map(t => {
-                        const localMatch = localTeams.find(lt => lt.id === t.id);
                         const localMatch = localTeams.find(lt => lt.id === t.id || (lt.name && lt.name.toLowerCase() === t.name.toLowerCase()));
                         const regMatch = registry[t.id] || registry[t.name.toLowerCase()] || (session && (session.teamId === t.id || session.teamName?.toLowerCase() === t.name.toLowerCase()) ? registry[session.email] : null);
 
@@ -192,10 +191,6 @@ const UniBoxDb = {
                             logo: t.logo || '🏏',
                             color: t.color || '#a3e635',
                             total_budget: Number(t.total_budget) || 100,
-                            owner_name: t.owner_name || localMatch?.owner_name || null,
-                            owner_email: t.owner_email || localMatch?.owner_email || null,
-                            owner_phone: t.owner_phone || localMatch?.owner_phone || null,
-                            password_hash: t.password_hash || localMatch?.password_hash || null,
                             owner_name: t.owner_name || localMatch?.owner_name || regMatch?.owner_name || (session && session.teamId === t.id ? session.ownerName : null),
                             owner_email: t.owner_email || localMatch?.owner_email || regMatch?.owner_email || (session && session.teamId === t.id ? session.email : null),
                             owner_phone: t.owner_phone || localMatch?.owner_phone || regMatch?.owner_phone || null,
@@ -225,8 +220,6 @@ const UniBoxDb = {
 
             const teamSquad = (players || []).filter(p => {
                 const soldTeam = (p.sold_to_team || '').trim().toLowerCase();
-                const soldTeamId = (p.sold_to_team_id || '').trim();
-                return (soldTeam && soldTeam === team.name.toLowerCase()) || (soldTeamId && soldTeamId === team.id);
                 const soldTeamId = (p.sold_to_team_id || '').trim().toLowerCase();
                 return (soldTeam && (soldTeam === teamName || soldTeam === teamId)) ||
                        (soldTeamId && (soldTeamId === teamId || soldTeamId === teamName));
@@ -425,7 +418,6 @@ const UniBoxDb = {
 
         // Fetch all teams
         const { data: teams } = await UniBoxDb.getAllTeams();
-        const team = teams.find(t => t.owner_email && t.owner_email.toLowerCase() === normalizedEmail);
         const registry = JSON.parse(localStorage.getItem('unibox_team_owners_registry') || '{}');
         const regEntry = registry[normalizedEmail];
 
@@ -450,7 +442,6 @@ const UniBoxDb = {
         // Set session
         const sessionData = {
             email: normalizedEmail,
-            ownerName: team.owner_name,
             ownerName: team.owner_name || regEntry?.owner_name || 'Franchise Owner',
             teamId: team.id,
             teamName: team.name,
